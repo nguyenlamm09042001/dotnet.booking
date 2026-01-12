@@ -1,0 +1,210 @@
+﻿@*
+  Views/Shared/_Layout.cshtml
+  - Tailwind output: wwwroot/dist/css/site.css
+  - Loading overlay for forms: add data-loading="true" to <form>
+  - SweetAlert2 (Swal) for toast/alert/confirm + (optional) Swal loading
+  - TempData keys (Controller):
+      TempData["SwalType"]     = "success" | "error" | "warning" | "info" | "question"
+      TempData["SwalTitle"]    = "..."
+      TempData["SwalMessage"]  = "..."
+      TempData["SwalRedirect"] = "/Account/Login" (optional)
+*@
+@using System.Text.Json
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Booking</title>
+
+    <link rel="stylesheet" href="~/dist/css/site.css" asp-append-version="true" />
+</head>
+
+<body class="min-h-screen bg-slate-50 text-slate-900">
+    <main role="main">
+        @RenderBody()
+    </main>
+
+    <!-- ✅ Loading Overlay -->
+    <div id="loadingOverlay"
+         class="hidden fixed inset-0 z-[99999] bg-black/50 backdrop-blur-[2px]">
+        <div class="min-h-screen flex items-center justify-center p-4">
+            <div class="w-full max-w-sm rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 p-6">
+                <div class="flex items-center gap-4">
+                    <!-- Spinner (SVG - không phụ thuộc thư viện) -->
+                    <div class="h-11 w-11 rounded-full bg-indigo-50 flex items-center justify-center">
+                        <svg class="h-6 w-6 animate-spin text-indigo-600" viewBox="0 0 24 24" fill="none">
+                            <circle class="opacity-25" cx="12" cy="12" r="10"
+                                    stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor"
+                                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                        </svg>
+                    </div>
+
+                    <div class="flex-1">
+                        <div class="font-semibold text-gray-900">Đang xử lý…</div>
+                        <div class="text-sm text-gray-500">Vui lòng chờ trong giây lát</div>
+                    </div>
+                </div>
+
+                <div class="mt-5 h-1.5 w-full overflow-hidden rounded-full bg-gray-100">
+                    <div class="h-full w-1/2 animate-pulse rounded-full bg-indigo-500"></div>
+                </div>
+
+                @* (tuỳ chọn) nút hủy — nếu không muốn thì xoá *@
+                @* <button type="button"
+                        class="mt-5 w-full rounded-xl border border-gray-200 bg-white py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                        onclick="window.__hideLoading?.()">
+                    Đóng
+                </button> *@
+            </div>
+        </div>
+    </div>
+
+    <!-- ✅ SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- ✅ Swal helpers (dùng chung toàn site) -->
+    <script>
+        (function () {
+            // Basic alert
+            window.showSwal = function (type, title, message) {
+                if (!window.Swal) return;
+                return Swal.fire({
+                    icon: type || "info",
+                    title: title || "",
+                    text: message || "",
+                    confirmButtonText: "OK",
+                    confirmButtonColor: "#4f46e5"
+                });
+            };
+
+            // Alert + redirect
+            window.showSwalRedirect = function (type, title, message, url) {
+                if (!window.Swal) {
+                    if (url) window.location.href = url;
+                    return;
+                }
+                return Swal.fire({
+                    icon: type || "success",
+                    title: title || "",
+                    text: message || "",
+                    confirmButtonText: "Tiếp tục",
+                    confirmButtonColor: "#4f46e5"
+                }).then(() => {
+                    if (url) window.location.href = url;
+                });
+            };
+
+            // Confirm then go to url (GET)
+            window.showSwalConfirm = function (title, message, confirmUrl, options) {
+                if (!window.Swal) {
+                    if (confirmUrl) window.location.href = confirmUrl;
+                    return;
+                }
+                const opt = options || {};
+                return Swal.fire({
+                    title: title || "Xác nhận?",
+                    text: message || "",
+                    icon: opt.icon || "warning",
+                    showCancelButton: true,
+                    confirmButtonText: opt.confirmText || "Xác nhận",
+                    cancelButtonText: opt.cancelText || "Hủy",
+                    confirmButtonColor: opt.confirmColor || "#dc2626",
+                    cancelButtonColor: opt.cancelColor || "#64748b"
+                }).then((result) => {
+                    if (result.isConfirmed && confirmUrl) window.location.href = confirmUrl;
+                });
+            };
+
+            // Swal loading (nếu bé muốn dùng Swal thay overlay)
+            window.showSwalLoading = function (title, message) {
+                if (!window.Swal) return;
+                return Swal.fire({
+                    title: title || "Đang xử lý…",
+                    text: message || "Vui lòng chờ trong giây lát",
+                    allowOutsideClick: false,
+                    allowEscapeKey: false,
+                    didOpen: () => Swal.showLoading()
+                });
+            };
+
+            window.hideSwalLoading = function () {
+                if (!window.Swal) return;
+                Swal.close();
+            };
+        })();
+    </script>
+
+    <!-- ✅ Loading overlay for forms: data-loading="true" -->
+    <script>
+        (function () {
+            const overlay = document.getElementById("loadingOverlay");
+            if (!overlay) return;
+
+            const show = () => overlay.classList.remove("hidden");
+            const hide = () => overlay.classList.add("hidden");
+
+            // ✅ Tránh bị kẹt overlay khi redirect / back-forward cache
+            window.addEventListener("DOMContentLoaded", hide);
+            window.addEventListener("pageshow", hide);
+
+            function disableSubmit(form) {
+                const btn = form.querySelector('button[type="submit"], input[type="submit"]');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.classList.add("opacity-60", "cursor-not-allowed");
+                }
+            }
+
+            // ✅ Show loading khi submit form có data-loading="true"
+            document.addEventListener("submit", function (e) {
+                const form = e.target;
+                if (!(form instanceof HTMLFormElement)) return;
+                if (!form.matches('form[data-loading="true"]')) return;
+
+                disableSubmit(form);
+                show();
+            }, true);
+
+            // Expose nếu sau này bé submit bằng fetch/AJAX
+            window.__showLoading = show;
+            window.__hideLoading = hide;
+        })();
+    </script>
+
+    <!-- ✅ Auto show Swal from TempData (Controller -> Layout) -->
+    @{
+        // Lấy 1 lần rồi serialize ra JSON để tránh lỗi dấu nháy/Unicode
+        var swalPayload = new
+        {
+            type = TempData["SwalType"]?.ToString(),
+            title = TempData["SwalTitle"]?.ToString(),
+            message = TempData["SwalMessage"]?.ToString(),
+            redirect = TempData["SwalRedirect"]?.ToString()
+        };
+
+        var swalJson = JsonSerializer.Serialize(swalPayload);
+    }
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const p = @Html.Raw(swalJson);
+
+            if (!p || !p.type) return;
+
+            // Nếu đang mở overlay mà muốn Swal hiện rõ, tắt overlay trước
+            if (window.__hideLoading) window.__hideLoading();
+
+            if (p.redirect && p.redirect.length > 0) {
+                showSwalRedirect(p.type, p.title, p.message, p.redirect);
+            } else {
+                showSwal(p.type, p.title, p.message);
+            }
+        });
+    </script>
+
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync(name: "Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,752 @@
+@model booking.ViewModels.StaffDashboardVm
+@{
+    ViewData["Title"] = "Dashboard nhân viên";
+
+    string Badge(string status)
+    {
+        status = (status ?? "").ToLower();
+        return status switch
+        {
+            "pending" => "status-pill bg-amber-50 text-amber-700 ring-1 ring-amber-200",
+            "confirmed" => "status-pill bg-sky-50 text-sky-700 ring-1 ring-sky-200",
+            "completed" => "status-pill bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200",
+            "canceled" => "status-pill bg-rose-50 text-rose-700 ring-1 ring-rose-200",
+            _ => "status-pill bg-slate-100 text-slate-700 ring-1 ring-slate-200"
+        };
+    }
+
+    string StatusText(string status)
+    {
+        status = (status ?? "").ToLower();
+        return status switch
+        {
+            "pending" => "Chờ xác nhận",
+            "confirmed" => "Đã xác nhận",
+            "completed" => "Hoàn thành",
+            "canceled" => "Đã hủy",
+            _ => status
+        };
+    }
+
+    var now = DateTime.Now;
+}
+
+<style>
+/* ===== BACKGROUND ===== */
+.staff-bg {
+    background:
+        radial-gradient(900px 520px at 12% 8%, rgba(99,102,241,.12), transparent 60%),
+        radial-gradient(800px 460px at 88% 10%, rgba(16,185,129,.10), transparent 55%),
+        linear-gradient(to bottom, #f8fafc, #ffffff);
+}
+
+/* ===== MUTED ===== */
+.muted { color: rgb(100 116 139); }
+
+/* ===== KPI CARD ===== */
+.kpi-card {
+    border-radius: 24px;
+    background: #fff;
+    position: relative;
+    padding: 16px;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 12px 30px rgba(2,6,23,.08);
+    transition: all .2s ease;
+}
+.kpi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 18px 36px rgba(2,6,23,.12);
+}
+.kpi-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg,#6366f1,#22c55e);
+    -webkit-mask:
+        linear-gradient(#fff 0 0) content-box,
+        linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    opacity: .22;
+}
+
+/* ===== ICON ===== */
+.kpi-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    color: white;
+}
+.i-indigo { background: linear-gradient(135deg,#6366f1,#818cf8); }
+.i-green  { background: linear-gradient(135deg,#10b981,#34d399); }
+.i-sky    { background: linear-gradient(135deg,#0ea5e9,#38bdf8); }
+.i-slate  { background: linear-gradient(135deg,#64748b,#94a3b8); }
+
+/* ===== SECTION CARD ===== */
+.section-card{
+    border-radius: 24px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    box-shadow: 0 12px 30px rgba(2,6,23,.06);
+}
+
+/* ===== BOOKING CARD ===== */
+.booking-card {
+    border-radius: 20px;
+    background: white;
+    border: 1px solid #e5e7eb;
+    padding: 16px;
+    transition: all .2s ease;
+}
+.booking-card:hover {
+    box-shadow: 0 14px 28px rgba(2,6,23,.12);
+    transform: translateY(-1px);
+}
+
+/* ===== STATUS PILL ===== */
+.status-pill {
+    border-radius: 9999px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+/* ===== DROPDOWN MENU ===== */
+.action-menu { position: relative; }
+.action-menu button.menu-btn{
+  width: 36px; height: 36px;
+  border-radius: 9999px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  font-weight: 900;
+  line-height: 1;
+}
+.action-menu button.menu-btn:hover{ background:#f1f5f9; }
+
+.action-menu ul.menu{
+  position: absolute;
+  right: 0; top: 44px;
+  min-width: 210px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  box-shadow: 0 18px 36px rgba(2,6,23,.14);
+  padding: 6px;
+  display: none;
+  z-index: 50;
+}
+.action-menu.open ul.menu{ display:block; }
+
+.action-menu .menu-item{
+  width: 100%;
+  text-align: left;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 14px;
+  background: transparent;
+}
+.action-menu .menu-item:hover{ background:#f1f5f9; }
+.action-menu .danger:hover{ background:#fff1f2; }
+
+/* ===== TIMELINE ===== */
+.timeline {
+    position: relative;
+    padding-left: 26px;
+}
+.timeline::before {
+    content: "";
+    position: absolute;
+    left: 10px;
+    top: 4px;
+    bottom: 4px;
+    width: 2px;
+    background: #e5e7eb;
+}
+.timeline-item {
+    position: relative;
+    padding-left: 14px;
+    margin-bottom: 14px;
+}
+.timeline-item::before {
+    content: "";
+    position: absolute;
+    left: -6px;
+    top: 6px;
+    width: 12px;
+    height: 12px;
+    border-radius: 9999px;
+    background: #6366f1;
+    box-shadow: 0 0 0 4px rgba(99,102,241,.12);
+}
+
+/* ===== MODAL ===== */
+.modal-wrap {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: none;
+}
+.modal-wrap.open { display: block; }
+
+.modal-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, .45);
+}
+
+.modal-card {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: min(92vw, 560px);
+    transform: translate(-50%, -50%);
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 24px;
+    box-shadow: 0 28px 60px rgba(2,6,23,.22);
+}
+
+.kv {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 14px;
+    padding: 10px 0;
+    border-bottom: 1px dashed #e5e7eb;
+}
+.kv:last-child { border-bottom: 0; }
+.kv .k { color: rgb(100 116 139); }
+.kv .v { font-weight: 800; color: rgb(15 23 42); }
+
+.note-box {
+    border: 1px solid #e5e7eb;
+    background: #f8fafc;
+    border-radius: 16px;
+    padding: 12px;
+    font-size: 13px;
+    color: rgb(30 41 59);
+}
+</style>
+
+<div class="min-h-screen staff-bg text-slate-900">
+    <!-- Top bar -->
+    <header class="sticky top-0 z-40 border-b border-slate-200 bg-white/85 backdrop-blur">
+        <div class="mx-auto max-w-7xl px-4">
+            <div class="flex h-16 items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 ring-1 ring-slate-200">
+                        <span class="text-sm font-black tracking-tight">ST</span>
+                    </div>
+                    <div class="leading-tight">
+                        <div class="text-sm font-extrabold tracking-wide">Dashboard nhân viên</div>
+                        <div class="text-xs muted">
+                            Xin chào @Model.StaffName • Cập nhật lúc @now.ToString("HH:mm")
+                        </div>
+                    </div>
+                </div>
+
+                
+
+            <div class="flex items-center gap-2">
+    <!-- Toggle active -->
+    <form method="post" asp-controller="Staff" asp-action="ToggleActive" class="inline-block">
+        @Html.AntiForgeryToken()
+        <button type="button"
+                class="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50"
+                onclick="confirmSubmit(this.form,
+                    '@(Model.IsActive ? "Chuyển sang Tạm nghỉ?" : "Chuyển sang Hoạt động?")',
+                    '@(Model.IsActive ? "Bạn sẽ không nhận lịch mới (nếu business có logic chặn)." : "Bạn sẵn sàng nhận lịch mới.")')">
+            @(Model.IsActive ? "Đang hoạt động" : "Tạm nghỉ")
+        </button>
+    </form>
+
+    <!-- Logout -->
+    <form asp-controller="Account" asp-action="Logout" method="post" class="inline-block">
+        @Html.AntiForgeryToken()
+        <button type="submit"
+                class="inline-flex items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-extrabold text-rose-700 hover:bg-rose-100">
+            Đăng xuất
+        </button>
+    </form>
+</div>
+
+            </div>
+        </div>
+    </header>
+
+    <main class="mx-auto max-w-7xl px-4 py-6 space-y-6">
+
+        <!-- KPI -->
+        <div class="grid gap-4 md:grid-cols-4">
+            <div class="kpi-card">
+                <div class="flex items-center gap-3">
+                    <div class="kpi-icon i-indigo">📅</div>
+                    <div>
+                        <div class="text-xs font-bold muted">HÔM NAY</div>
+                        <div class="text-2xl font-black">@Model.TodayTotal</div>
+                        <div class="mt-1 text-xs muted">
+                            Chờ: <b class="text-slate-900">@Model.TodayPending</b> •
+                            Xác nhận: <b class="text-slate-900">@Model.TodayConfirmed</b>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="flex items-center gap-3">
+                    <div class="kpi-icon i-sky">⏳</div>
+                    <div>
+                        <div class="text-xs font-bold muted">7 NGÀY TỚI</div>
+                        <div class="text-2xl font-black">@Model.Upcoming7d</div>
+                        <div class="mt-1 text-xs muted">Booking đã phân công cho bạn</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="flex items-center gap-3">
+                    <div class="kpi-icon i-green">🛠</div>
+                    <div>
+                        <div class="text-xs font-bold muted">DỊCH VỤ</div>
+                        <div class="text-2xl font-black">@Model.AssignedServicesCount</div>
+                        <div class="mt-1 text-xs muted">Bạn có thể nhận lịch</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="kpi-card">
+                <div class="flex items-center gap-3">
+                    <div class="kpi-icon i-slate">⚡</div>
+                    <div>
+                        <div class="text-xs font-bold muted">TRẠNG THÁI</div>
+                        <div class="mt-1 inline-flex items-center gap-2">
+                            <span class="inline-flex h-2.5 w-2.5 rounded-full @(Model.IsActive ? "bg-emerald-500" : "bg-slate-400")"></span>
+                            <span class="text-sm font-extrabold">@(Model.IsActive ? "Hoạt động" : "Tạm nghỉ")</span>
+                        </div>
+                        <div class="mt-1 text-xs muted">Bật/tắt ở góc phải</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Today bookings -->
+        <div class="section-card">
+            <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <div>
+                    <div class="text-sm font-extrabold">Lịch hôm nay</div>
+                    <div class="text-xs muted">Xử lý nhanh booking của bạn</div>
+                </div>
+                <div class="text-xs muted">@DateTime.Now.ToString("dd/MM/yyyy")</div>
+            </div>
+
+            @if (Model.TodayBookings == null || Model.TodayBookings.Count == 0)
+            {
+                <div class="p-6 text-sm muted">Hôm nay bạn chưa có lịch nào.</div>
+            }
+            else
+            {
+                <div class="p-4 space-y-3">
+                    @foreach (var b in Model.TodayBookings)
+                    {
+                        <div class="booking-card flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <!-- LEFT -->
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <div class="text-base font-extrabold truncate">@b.CustomerName</div>
+                                    <span class="@Badge(b.Status ?? "")">@StatusText(b.Status ?? "")</span>
+                                </div>
+
+                                <div class="mt-1 text-sm text-slate-600">
+                                    <b class="text-slate-800">@b.ServiceName</b>
+                                    <span class="mx-2 text-slate-300">•</span>
+                                    @b.Time.ToString("HH:mm")
+                                    <span class="mx-2 text-slate-300">•</span>
+                                    @b.Phone
+                                    <span class="mx-2 text-slate-300">•</span>
+                                    <span class="text-xs muted whitespace-nowrap">#@b.Id</span>
+                                </div>
+
+                                @if (!string.IsNullOrWhiteSpace(b.Note))
+                                {
+                                    <div class="mt-1 text-xs muted">
+                                        Ghi chú: @b.Note
+                                    </div>
+                                }
+                            </div>
+
+                        <!-- RIGHT: actions -->
+<div class="flex flex-wrap items-center justify-end gap-2">
+
+    <button type="button"
+            class="inline-flex h-9 items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 text-xs font-extrabold hover:bg-slate-50"
+            onclick="openBookingDetail('@b.Id')">
+        👁 Chi tiết
+    </button>
+
+    @if ((b.Status ?? "").ToLower() == "pending")
+    {
+        <form method="post" asp-controller="Staff" asp-action="UpdateBookingStatus" class="inline-block">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="id" value="@b.Id" />
+            <input type="hidden" name="toStatus" value="confirmed" />
+            <button type="button"
+                    class="inline-flex h-9 items-center justify-center rounded-2xl bg-emerald-600 px-3 text-xs font-extrabold text-white shadow-sm hover:bg-emerald-700"
+                    onclick="confirmSubmit(this.form,'Duyệt booking?','Booking sẽ chuyển sang Đã xác nhận.')">
+                ✅ Duyệt
+            </button>
+        </form>
+    }
+
+    @if ((b.Status ?? "").ToLower() == "confirmed")
+    {
+        <form method="post" asp-controller="Staff" asp-action="UpdateBookingStatus" class="inline-block">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="id" value="@b.Id" />
+            <input type="hidden" name="toStatus" value="completed" />
+            <button type="button"
+                    class="inline-flex h-9 items-center justify-center rounded-2xl bg-sky-600 px-3 text-xs font-extrabold text-white shadow-sm hover:bg-sky-700"
+                    onclick="confirmSubmit(this.form,'Hoàn thành booking?','Xác nhận bạn đã làm xong dịch vụ.')">
+                ⭐ Hoàn thành
+            </button>
+        </form>
+    }
+
+</div>
+
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        <!-- Upcoming Timeline -->
+        <div class="section-card">
+            <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+                <div>
+                    <div class="text-sm font-extrabold">Sắp tới (7 ngày)</div>
+                    <div class="text-xs muted">Timeline lịch đã phân công cho bạn</div>
+                </div>
+                <div class="text-xs muted">7 ngày tới</div>
+            </div>
+
+            @if (Model.UpcomingBookings == null || Model.UpcomingBookings.Count == 0)
+            {
+                <div class="p-6 text-sm muted">Chưa có lịch sắp tới.</div>
+            }
+            else
+            {
+                <div class="p-5">
+                    <div class="timeline">
+                        @foreach (var b in Model.UpcomingBookings)
+                        {
+                            <div class="timeline-item">
+                                <div class="flex items-center gap-2">
+                                    <div class="font-extrabold">
+                                        @b.Date.ToString("dd/MM") • @b.Time.ToString("HH:mm")
+                                    </div>
+                                    <span class="@Badge(b.Status)">@StatusText(b.Status)</span>
+                                </div>
+                                <div class="mt-1 text-sm text-slate-600">
+                                    <b class="text-slate-800">@b.CustomerName</b> — @b.ServiceName
+                                    <span class="mx-2 text-slate-300">•</span>
+                                    <span class="text-xs muted">#@b.Id</span>
+                                </div>
+
+                                <!-- optional: quick open detail -->
+                                <div class="mt-2">
+                                    <button type="button"
+                                            class="rounded-2xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold hover:bg-slate-50"
+                                            onclick="openBookingDetail(@b.Id)">
+                                        👁 Xem chi tiết
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+
+    </main>
+</div>
+
+<!-- ✅ MODAL DETAIL -->
+<div id="bookingDetailModal" class="modal-wrap" aria-hidden="true">
+    <div class="modal-overlay" onclick="closeBookingDetail()"></div>
+
+    <div class="modal-card">
+        <div class="flex items-center justify-between gap-3 border-b border-slate-200 px-5 py-4">
+            <div>
+                <div class="text-sm font-extrabold">Chi tiết booking</div>
+                <div id="bd-sub" class="text-xs muted">—</div>
+            </div>
+            <button type="button"
+                    class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-black hover:bg-slate-50"
+                    onclick="closeBookingDetail()">
+                ✕
+            </button>
+        </div>
+
+        <div class="px-5 py-4">
+            <div id="bd-loading" class="text-sm muted">Đang tải dữ liệu...</div>
+
+            <div id="bd-body" class="hidden space-y-4">
+                <div class="flex items-center gap-2">
+                    <div id="bd-customer" class="text-base font-extrabold"></div>
+                    <span id="bd-status" class="status-pill"></span>
+                </div>
+
+                <div class="kv">
+                    <div class="k">Mã booking</div>
+                    <div class="v" id="bd-id">#</div>
+                </div>
+
+                <div class="kv">
+                    <div class="k">Dịch vụ</div>
+                    <div class="v" id="bd-service">—</div>
+                </div>
+
+                <div class="kv">
+                    <div class="k">Thời gian</div>
+                    <div class="v" id="bd-datetime">—</div>
+                </div>
+
+                <div class="kv">
+                    <div class="k">Số điện thoại</div>
+                    <div class="v">
+                        <span id="bd-phone">—</span>
+                        <button type="button"
+                                class="ml-2 rounded-xl border border-slate-200 px-2 py-1 text-xs font-black hover:bg-slate-50"
+                                onclick="copyFromEl('bd-phone')">Copy</button>
+                    </div>
+                </div>
+
+                <div class="kv" id="bd-cat-wrap" style="display:none;">
+                    <div class="k">Danh mục</div>
+                    <div class="v" id="bd-cat">—</div>
+                </div>
+
+                <div class="kv" id="bd-loc-wrap" style="display:none;">
+                    <div class="k">Địa điểm</div>
+                    <div class="v" id="bd-loc">—</div>
+                </div>
+
+                <div id="bd-note-wrap" style="display:none;">
+                    <div class="text-xs font-black muted mb-2">Ghi chú</div>
+                    <div class="note-box" id="bd-note"></div>
+                </div>
+
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button"
+                            class="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold hover:bg-slate-50"
+                            onclick="closeBookingDetail()">
+                        Đóng
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function confirmSubmit(form, title, text) {
+        if (!window.Swal) { if (confirm(title + "\n\n" + text)) form.submit(); return; }
+        Swal.fire({
+            icon: "warning",
+            title: title,
+            text: text,
+            showCancelButton: true,
+            confirmButtonText: "Xác nhận",
+            cancelButtonText: "Hủy",
+            reverseButtons: true
+        }).then((r) => { if (r.isConfirmed) form.submit(); });
+    }
+
+    function toggleMenu(btn) {
+        closeAllMenus();
+        const wrap = btn.closest('.action-menu');
+        if (!wrap) return;
+        wrap.classList.toggle('open');
+    }
+
+    function closeAllMenus() {
+        document.querySelectorAll('.action-menu.open').forEach(x => x.classList.remove('open'));
+    }
+
+    // click outside closes menu
+    document.addEventListener('click', function(e){
+        const inside = e.target.closest('.action-menu');
+        if (!inside) closeAllMenus();
+    });
+
+    // ESC closes menu + modal
+    document.addEventListener('keydown', function(e){
+        if (e.key === 'Escape') {
+            closeAllMenus();
+            closeBookingDetail();
+        }
+    });
+
+    // ===== DETAIL MODAL =====
+    function openBookingDetail(id){
+        closeAllMenus();
+
+        const modal = document.getElementById('bookingDetailModal');
+        const loading = document.getElementById('bd-loading');
+        const body = document.getElementById('bd-body');
+
+        modal.classList.add('open');
+        loading.style.display = 'block';
+        body.classList.add('hidden');
+
+        document.getElementById('bd-sub').textContent = 'Đang tải...';
+        document.getElementById('bd-id').textContent = '#' + id;
+
+        fetch(`@Url.Action("BookingDetail","Staff")?id=${id}`, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(async (res) => {
+            if (!res.ok) {
+                let msg = 'Không tải được chi tiết booking.';
+                try {
+                    const j = await res.json();
+                    if (j && j.message) msg = j.message;
+                } catch {}
+                throw new Error(msg);
+            }
+            return res.json();
+        })
+        .then((d) => {
+            // d: StaffDetailBookingVm JSON
+            // DateOnly => "YYYY-MM-DD", TimeOnly => "HH:mm:ss"
+            const dateStr = formatDateOnly(d.date);
+            const timeStr = formatTimeOnly(d.time);
+
+            document.getElementById('bd-sub').textContent = `#${d.id} • ${dateStr} ${timeStr}`;
+            document.getElementById('bd-id').textContent = '#' + d.id;
+
+            document.getElementById('bd-customer').textContent = d.customerName || 'Khách';
+            document.getElementById('bd-phone').textContent = d.phone || '—';
+            document.getElementById('bd-service').textContent = d.serviceName || '—';
+            document.getElementById('bd-datetime').textContent = `${dateStr} • ${timeStr}`;
+
+            // status pill
+            const st = (d.status || '').toLowerCase();
+            const statusEl = document.getElementById('bd-status');
+            statusEl.className = ''; // reset
+            statusEl.classList.add(...BadgeClass(st).split(' '));
+            statusEl.textContent = StatusTextJs(st);
+
+            // category
+            const catWrap = document.getElementById('bd-cat-wrap');
+            if (d.category && d.category.trim() !== '') {
+                catWrap.style.display = 'flex';
+                document.getElementById('bd-cat').textContent = d.category;
+            } else {
+                catWrap.style.display = 'none';
+            }
+
+            // location
+            const locWrap = document.getElementById('bd-loc-wrap');
+            if (d.location && d.location.trim() !== '') {
+                locWrap.style.display = 'flex';
+                document.getElementById('bd-loc').textContent = d.location;
+            } else {
+                locWrap.style.display = 'none';
+            }
+
+            // note
+            const noteWrap = document.getElementById('bd-note-wrap');
+            if (d.note && d.note.trim() !== '') {
+                noteWrap.style.display = 'block';
+                document.getElementById('bd-note').textContent = d.note;
+            } else {
+                noteWrap.style.display = 'none';
+            }
+
+            loading.style.display = 'none';
+            body.classList.remove('hidden');
+        })
+        .catch((err) => {
+            loading.style.display = 'none';
+            body.classList.add('hidden');
+
+            if (window.Swal) {
+                Swal.fire({ icon: 'error', title: 'Lỗi', text: err.message || 'Có lỗi xảy ra.' });
+            } else {
+                alert(err.message || 'Có lỗi xảy ra.');
+            }
+        });
+    }
+
+    function closeBookingDetail(){
+        const modal = document.getElementById('bookingDetailModal');
+        if (!modal) return;
+        modal.classList.remove('open');
+    }
+
+    function copyFromEl(id){
+        const el = document.getElementById(id);
+        if (!el) return;
+        const text = (el.textContent || '').trim();
+        if (!text) return;
+
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => {
+                if (window.Swal) Swal.fire({ toast:true, position:'top', timer:1200, showConfirmButton:false, icon:'success', title:'Đã copy' });
+            });
+        } else {
+            // fallback
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+        }
+    }
+
+    function formatDateOnly(s){
+        // "2026-01-12" => "12/01/2026"
+        if (!s) return '—';
+        const parts = s.split('-');
+        if (parts.length !== 3) return s;
+        return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+
+    function formatTimeOnly(s){
+        // "09:00:00" => "09:00"
+        if (!s) return '—';
+        return s.substring(0,5);
+    }
+
+    function StatusTextJs(st){
+        switch(st){
+            case "pending": return "Chờ xác nhận";
+            case "confirmed": return "Đã xác nhận";
+            case "completed": return "Hoàn thành";
+            case "canceled": return "Đã hủy";
+            default: return st || "—";
+        }
+    }
+
+    function BadgeClass(st){
+        // same style as C# Badge()
+        switch(st){
+            case "pending": return "status-pill bg-amber-50 text-amber-700 ring-1 ring-amber-200";
+            case "confirmed": return "status-pill bg-sky-50 text-sky-700 ring-1 ring-sky-200";
+            case "completed": return "status-pill bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200";
+            case "canceled": return "status-pill bg-rose-50 text-rose-700 ring-1 ring-rose-200";
+            default: return "status-pill bg-slate-100 text-slate-700 ring-1 ring-slate-200";
+        }
+    }
+</script>
+}

@@ -1,0 +1,234 @@
+@model IEnumerable<booking.Models.Service>
+
+@{
+    ViewData["Title"] = "Đang hot";
+    string PriceVnd(decimal v) => string.Format(System.Globalization.CultureInfo.GetCultureInfo("vi-VN"), "{0:N0}đ", v);
+
+    var q = (string)(ViewBag.Q ?? "");
+    var loc = (string)(ViewBag.Location ?? "");
+    var cat = (string)(ViewBag.Category ?? "");
+    var sort = (string)(ViewBag.Sort ?? "rating");
+    var hotTitle = (string)(ViewBag.HotTitle ?? "Đang hot");
+}
+
+<div class="min-h-screen bg-slate-50">
+    <!-- Top bar -->
+    <div class="sticky top-0 z-30 border-b border-slate-200 bg-white/80 backdrop-blur">
+        <div class="mx-auto max-w-6xl px-4 sm:px-6 py-4">
+            <div class="flex items-center justify-between gap-4">
+                <div class="min-w-0">
+                    <div class="text-xs text-slate-500">Booking</div>
+                    <div class="truncate text-lg sm:text-xl font-semibold text-slate-900">
+                        @hotTitle
+                    </div>
+                    <div class="mt-1 text-xs text-slate-500">
+                        Kết quả lọc từ DB Services
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <a asp-controller="User" asp-action="Index"
+                       class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50">
+                        ← Quay lại Khám phá
+                    </a>
+
+                    @if (!string.IsNullOrWhiteSpace(q))
+                    {
+                        <a asp-controller="User" asp-action="Hot"
+                           class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800">
+                            Xoá lọc hot
+                        </a>
+                    }
+                </div>
+            </div>
+
+            <!-- Search + filters -->
+            <form method="get" class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-12">
+                <div class="sm:col-span-7">
+                    <div class="relative">
+                        <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">🔥</span>
+                        <input name="q" value="@q" type="text"
+                               placeholder="Hot keyword (vd: Cắt tóc, Massage...)"
+                               class="w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-3 py-3 text-sm text-slate-900
+                                      placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                    </div>
+                </div>
+
+                <div class="sm:col-span-3">
+                    <div class="relative">
+                        <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">📍</span>
+                        <input name="location" value="@loc" type="text"
+                               placeholder="Khu vực (tuỳ chọn)"
+                               class="w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-3 py-3 text-sm text-slate-900
+                                      placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+                    </div>
+                </div>
+
+                <div class="sm:col-span-2">
+                    <button type="submit"
+                            class="w-full rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 shadow-sm">
+                        Lọc
+                    </button>
+                </div>
+
+                <input type="hidden" name="category" value="@cat" />
+                <input type="hidden" name="sort" value="@sort" />
+            </form>
+
+            <!-- Sort -->
+            <div class="mt-3 flex flex-wrap items-center gap-2 text-xs">
+                <span class="text-slate-500">Sắp xếp:</span>
+
+                <a asp-controller="User" asp-action="Hot"
+                   asp-route-q="@q" asp-route-location="@loc" asp-route-category="@cat" asp-route-sort="rating"
+                   class="rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-700 hover:bg-slate-50 @(sort=="rating" ? "ring-2 ring-indigo-500 border-indigo-200" : "")">
+                    Rating
+                </a>
+
+                <a asp-controller="User" asp-action="Hot"
+                   asp-route-q="@q" asp-route-location="@loc" asp-route-category="@cat" asp-route-sort="price_asc"
+                   class="rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-700 hover:bg-slate-50 @(sort=="price_asc" ? "ring-2 ring-indigo-500 border-indigo-200" : "")">
+                    Giá ↑
+                </a>
+
+                <a asp-controller="User" asp-action="Hot"
+                   asp-route-q="@q" asp-route-location="@loc" asp-route-category="@cat" asp-route-sort="price_desc"
+                   class="rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-700 hover:bg-slate-50 @(sort=="price_desc" ? "ring-2 ring-indigo-500 border-indigo-200" : "")">
+                    Giá ↓
+                </a>
+
+                <a asp-controller="User" asp-action="Hot"
+                   asp-route-q="@q" asp-route-location="@loc" asp-route-category="@cat" asp-route-sort="new"
+                   class="rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-700 hover:bg-slate-50 @(sort=="new" ? "ring-2 ring-indigo-500 border-indigo-200" : "")">
+                    Mới
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="mx-auto max-w-6xl px-4 sm:px-6 py-6">
+        <div class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <div class="text-sm font-semibold text-slate-900">Kết quả</div>
+                    <div class="mt-1 text-xs text-slate-500">
+                        Từ khoá: <span class="font-semibold text-slate-900">@(!string.IsNullOrWhiteSpace(q) ? q : "—")</span>
+                        • Tổng: <span class="font-semibold text-slate-900">@Model.Count()</span>
+                    </div>
+                </div>
+
+                <div class="flex gap-2">
+                    <a asp-controller="User" asp-action="Hot"
+                       asp-route-q="Cắt tóc"
+                       class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50">
+                        Cắt tóc
+                    </a>
+                    <a asp-controller="User" asp-action="Hot"
+                       asp-route-q="Rửa xe"
+                       class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50">
+                        Rửa xe
+                    </a>
+                    <a asp-controller="User" asp-action="Hot"
+                       asp-route-q="Khách sạn"
+                       class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50">
+                        Khách sạn
+                    </a>
+                    <a asp-controller="User" asp-action="Hot"
+                       asp-route-q="Massage"
+                       class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-800 hover:bg-slate-50">
+                        Massage
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            @foreach (var s in Model)
+            {
+                <div class="rounded-3xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition overflow-hidden">
+                    <div class="p-5">
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <div class="truncate text-base font-semibold text-slate-900">@s.Name</div>
+                                <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                                    @if (!string.IsNullOrWhiteSpace(s.Category))
+                                    {
+                                        <span class="rounded-full bg-slate-100 px-2 py-1">@s.Category</span>
+                                    }
+                                    <span>• @s.DurationMinutes phút</span>
+                                    @if (!string.IsNullOrWhiteSpace(s.Location))
+                                    {
+                                        <span>• @s.Location</span>
+                                    }
+                                </div>
+                            </div>
+
+                            @if (s.IsActive)
+                            {
+                                <span class="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                    Đang mở đặt
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+                                    Tạm đóng
+                                </span>
+                            }
+                        </div>
+
+                        <div class="mt-4 flex items-center justify-between">
+                            <div>
+                                <div class="text-lg font-bold text-slate-900">@PriceVnd(s.Price)</div>
+                                <div class="mt-1 text-xs text-slate-500">Giá từ</div>
+                            </div>
+
+                            <div class="text-right">
+                                <div class="text-sm font-semibold text-slate-900">⭐ @s.Rating.ToString("0.0")</div>
+                                <div class="mt-1 text-xs text-slate-500">@s.ReviewCount đánh giá</div>
+                            </div>
+                        </div>
+
+                        <div class="mt-5 flex gap-2">
+                            <a asp-controller="Booking" asp-action="Create" asp-route-serviceId="@s.Id"
+                               class="flex-1 inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700 shadow-sm @(s.IsActive ? "" : "pointer-events-none opacity-60")">
+                                Đặt ngay
+                            </a>
+
+                            <a asp-controller="Services" asp-action="Details" asp-route-id="@s.Id"
+                               class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50">
+                                Chi tiết
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        @if (!Model.Any())
+        {
+            <div class="mt-6 rounded-3xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
+                Không tìm thấy dịch vụ phù hợp. Thử đổi từ khóa hoặc khu vực.
+            </div>
+        }
+
+        <div class="py-10 text-center text-xs text-slate-500">
+            © @DateTime.Now.Year Booking • Trang Hot
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+@if (TempData["SwalSuccess"] != null)
+{
+<script>
+  Swal.fire({
+    icon: 'success',
+    title: 'Thành công',
+    text: @Html.Raw(Json.Serialize(TempData["SwalSuccess"])),
+    confirmButtonText: 'OK'
+  });
+</script>
+}
+}

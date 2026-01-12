@@ -1,0 +1,367 @@
+@model IEnumerable<booking.ViewModels.BusinessBookingRowVm>
+
+@{
+    ViewData["Title"] = "Quản lý lịch hẹn";
+
+    var fullName = User.FindFirst("FullName")?.Value;
+    var displayName = string.IsNullOrWhiteSpace(fullName) ? (User.Identity?.Name ?? "bạn") : fullName;
+    var now = DateTime.Now;
+
+    string Norm(string? s) => (s ?? "").Trim().ToLowerInvariant();
+
+    string StatusVi(string? s) => Norm(s) switch
+    {
+        "pending" => "Chờ xác nhận",
+        "confirmed" => "Đã xác nhận",
+        "completed" => "Hoàn thành",
+        "canceled" => "Đã hủy",
+        _ => string.IsNullOrWhiteSpace(s) ? "—" : s!
+    };
+
+    string BadgeClass(string? s) => Norm(s) switch
+    {
+        "completed" => "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200",
+        "canceled"  => "bg-rose-100 text-rose-800 ring-1 ring-rose-200",
+        "confirmed" => "bg-sky-100 text-sky-800 ring-1 ring-sky-200",
+        "pending"   => "bg-amber-100 text-amber-800 ring-1 ring-amber-200",
+        _           => "bg-slate-100 text-slate-800 ring-1 ring-slate-200"
+    };
+
+    // query
+    var req = ViewContext.HttpContext.Request;
+    var q = (req.Query["q"].ToString() ?? "").Trim();
+    var statusFilter = (req.Query["status"].ToString() ?? "").Trim();
+    var dateFilter = (req.Query["date"].ToString() ?? "").Trim(); // yyyy-MM-dd
+
+    // pagination
+    int currentPage = 1, totalPages = 1, pageSize = 10, tmp;
+    var pageStr = Convert.ToString((object?)ViewBag.Page);
+    if (int.TryParse(pageStr, out tmp)) currentPage = Math.Max(1, tmp);
+    var totalPagesStr = Convert.ToString((object?)ViewBag.TotalPages);
+    if (int.TryParse(totalPagesStr, out tmp)) totalPages = Math.Max(1, tmp);
+    var pageSizeStr = Convert.ToString((object?)ViewBag.PageSize);
+    if (int.TryParse(pageSizeStr, out tmp)) pageSize = Math.Max(1, tmp);
+
+    string Qs(int p)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(q)) parts.Add("q=" + Uri.EscapeDataString(q));
+        if (!string.IsNullOrWhiteSpace(statusFilter)) parts.Add("status=" + Uri.EscapeDataString(statusFilter));
+        if (!string.IsNullOrWhiteSpace(dateFilter)) parts.Add("date=" + Uri.EscapeDataString(dateFilter));
+        parts.Add("page=" + p);
+        return "?" + string.Join("&", parts);
+    }
+
+    // để giữ đúng query khi post (Approve/Cancel/Complete) quay lại đúng trang
+    var returnUrl = $"{ViewContext.HttpContext.Request.Path}{ViewContext.HttpContext.Request.QueryString}";
+}
+
+<div class="min-h-screen bg-slate-50">
+    <div class="mx-auto max-w-7xl px-4 py-8 sm:py-10">
+
+        <!-- Header -->
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <div class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">
+                    <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+                    Business Portal
+                </div>
+
+                <h1 class="mt-3 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+                    Quản lý lịch hẹn
+                </h1>
+
+                <p class="mt-2 text-sm text-slate-600">
+                    Xin chào <span class="font-semibold text-slate-900">@displayName</span> •
+                    <span class="text-slate-500">Cập nhật lúc</span>
+                    <span class="font-semibold text-slate-700">@now.ToString("HH:mm")</span>
+                </p>
+            </div>
+
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <a asp-controller="Business" asp-action="index"
+                   class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
+                    ← Về dashboard
+                </a>
+
+                <a asp-controller="BusinessServices" asp-action="Index"
+                   class="inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700">
+                    Quản lý dịch vụ →
+                </a>
+            </div>
+        </div>
+
+        <!-- Filters -->
+        <div class="mt-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <form method="get" class="grid grid-cols-1 gap-3 sm:grid-cols-12 sm:items-end">
+                <div class="sm:col-span-6">
+                    <div class="text-sm font-semibold text-slate-900">Tìm kiếm</div>
+                    <input name="q" value="@q"
+                           class="mt-2 h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm text-slate-700 shadow-sm
+                                  focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                           placeholder="Tên khách / SĐT / dịch vụ..." />
+                </div>
+
+                <div class="sm:col-span-3">
+                    <div class="text-sm font-semibold text-slate-900">Trạng thái</div>
+                    <select name="status"
+                            class="mt-2 h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 shadow-sm
+                                   focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                        <option value="" selected="@(string.IsNullOrWhiteSpace(statusFilter))">Tất cả</option>
+                        <option value="pending" selected="@(statusFilter=="pending")">Chờ xác nhận</option>
+                        <option value="confirmed" selected="@(statusFilter=="confirmed")">Đã xác nhận</option>
+                        <option value="completed" selected="@(statusFilter=="completed")">Hoàn thành</option>
+                        <option value="canceled" selected="@(statusFilter=="canceled")">Đã hủy</option>
+                    </select>
+                </div>
+
+                <div class="sm:col-span-3">
+                    <div class="text-sm font-semibold text-slate-900">Ngày</div>
+                    <input type="date" name="date" value="@dateFilter"
+                           class="mt-2 h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm text-slate-700 shadow-sm
+                                  focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                </div>
+
+                <div class="sm:col-span-12 flex gap-2 justify-end">
+                    <button type="submit"
+                            class="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm hover:bg-slate-800">
+                        Áp dụng
+                    </button>
+                    <a asp-controller="BusinessBookings" asp-action="Index"
+                       class="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
+                        Reset
+                    </a>
+                </div>
+            </form>
+        </div>
+
+        <!-- List -->
+        <div class="mt-6 rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div class="flex flex-col gap-2 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <div class="text-lg font-extrabold text-slate-900">Danh sách lịch hẹn</div>
+                    <div class="mt-1 text-sm text-slate-600">Duyệt / hủy / hoàn thành ngay tại đây.</div>
+                </div>
+            </div>
+
+            <div class="h-px bg-slate-200"></div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-left text-sm">
+                    <thead class="bg-slate-50">
+                        <tr class="text-xs font-bold uppercase tracking-wide text-slate-500">
+                            <th class="px-6 py-4">Khách</th>
+                            <th class="px-6 py-4">Dịch vụ</th>
+                            <th class="px-6 py-4">Ngày giờ</th>
+                            <th class="px-6 py-4">Trạng thái</th>
+                            <th class="px-6 py-4 text-right">Hành động</th>
+                        </tr>
+                    </thead>
+
+                    <tbody class="divide-y divide-slate-200 bg-white">
+                        @if (Model == null || !Model.Any())
+                        {
+                            <tr>
+                                <td class="px-6 py-6 text-slate-500" colspan="5">Chưa có lịch hẹn nào.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            foreach (var b in Model)
+                            {
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-6 py-4">
+                                        <div class="font-semibold text-slate-900">@b.CustomerName</div>
+                                        <div class="text-xs text-slate-500">@b.Phone</div>
+                                        @if (!string.IsNullOrWhiteSpace(b.Note))
+                                        {
+                                            <div class="mt-1 text-xs text-slate-500 line-clamp-2">Ghi chú: @b.Note</div>
+                                        }
+                                    </td>
+
+                                    <td class="px-6 py-4 text-slate-700">@b.ServiceName</td>
+
+                                    <td class="px-6 py-4 text-slate-700">
+                                        @b.Date.ToString("dd/MM/yyyy") • @b.Time.ToString(@"hh\:mm")
+                                    </td>
+
+                                    <td class="px-6 py-4">
+                                        <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-bold @BadgeClass(b.Status)">
+                                            @StatusVi(b.Status)
+                                        </span>
+                                    </td>
+
+                                    <td class="px-6 py-4">
+                                        <div class="flex justify-end gap-2">
+                                            <a asp-controller="BusinessBookings" asp-action="Details" asp-route-id="@b.Id"
+                                               class="inline-flex h-10 min-w-[86px] items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-50">
+                                                Xem
+                                            </a>
+
+                                            @if (Norm(b.Status) == "pending")
+                                            {
+                                                <form asp-controller="BusinessBookings" asp-action="Approve" method="post" class="inline-block">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@b.Id" />
+                                                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                                    <button type="submit"
+                                                            class="inline-flex h-10 min-w-[86px] items-center justify-center rounded-xl bg-emerald-600 px-3 text-xs font-bold text-white shadow-sm hover:bg-emerald-700">
+                                                        Duyệt
+                                                    </button>
+                                                </form>
+
+                                                <form asp-controller="BusinessBookings" asp-action="Cancel" method="post"
+                                                      class="inline-block js-cancel-form"
+                                                      data-customer="@b.CustomerName"
+                                                      data-service="@b.ServiceName"
+                                                      data-time="@($"{b.Date:dd/MM/yyyy} • {b.Time:hh\\:mm}")">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@b.Id" />
+                                                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                                    <button type="submit"
+                                                            class="inline-flex h-10 min-w-[86px] items-center justify-center rounded-xl bg-rose-600 px-3 text-xs font-bold text-white shadow-sm hover:bg-rose-700">
+                                                        Hủy
+                                                    </button>
+                                                </form>
+                                            }
+                                            else if (Norm(b.Status) == "confirmed")
+                                            {
+                                                <form asp-controller="BusinessBookings" asp-action="Complete" method="post"
+                                                      class="inline-block js-complete-form"
+                                                      data-customer="@b.CustomerName"
+                                                      data-service="@b.ServiceName"
+                                                      data-time="@($"{b.Date:dd/MM/yyyy} • {b.Time:hh\\:mm}")">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@b.Id" />
+                                                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                                    <button type="submit"
+                                                            class="inline-flex h-10 min-w-[98px] items-center justify-center rounded-xl bg-slate-900 px-3 text-xs font-bold text-white shadow-sm hover:bg-slate-800">
+                                                        Hoàn thành
+                                                    </button>
+                                                </form>
+
+                                                <form asp-controller="BusinessBookings" asp-action="Cancel" method="post"
+                                                      class="inline-block js-cancel-form"
+                                                      data-customer="@b.CustomerName"
+                                                      data-service="@b.ServiceName"
+                                                      data-time="@($"{b.Date:dd/MM/yyyy} • {b.Time:hh\\:mm}")">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@b.Id" />
+                                                    <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                                    <button type="submit"
+                                                            class="inline-flex h-10 min-w-[86px] items-center justify-center rounded-xl bg-rose-600 px-3 text-xs font-bold text-white shadow-sm hover:bg-rose-700">
+                                                        Hủy
+                                                    </button>
+                                                </form>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            @if (totalPages > 1)
+            {
+                var start = Math.Max(1, currentPage - 2);
+                var end = Math.Min(totalPages, currentPage + 2);
+
+                <div class="flex flex-col items-center justify-between gap-3 px-6 py-5 sm:flex-row">
+                    <div class="text-sm text-slate-600">
+                        Trang <span class="font-semibold text-slate-900">@currentPage</span> /
+                        <span class="font-semibold text-slate-900">@totalPages</span>
+                        • Mỗi trang <span class="font-semibold text-slate-900">@pageSize</span> mục
+                    </div>
+
+                    <div class="flex flex-wrap items-center gap-2">
+                        <a href="@Qs(Math.Max(1, currentPage - 1))"
+                           class="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-50 @(currentPage <= 1 ? "pointer-events-none opacity-50" : "")">
+                            ← Trước
+                        </a>
+
+                        @for (int p = start; p <= end; p++)
+                        {
+                            var isCurrent = (p == currentPage);
+                            <a href="@Qs(p)"
+                               class="inline-flex h-10 min-w-[40px] items-center justify-center rounded-xl px-3 text-xs font-extrabold shadow-sm
+                                      @(isCurrent ? "bg-indigo-600 text-white" : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50")">
+                                @p
+                            </a>
+                        }
+
+                        <a href="@Qs(Math.Min(totalPages, currentPage + 1))"
+                           class="inline-flex h-10 items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-50 @(currentPage >= totalPages ? "pointer-events-none opacity-50" : "")">
+                            Sau →
+                        </a>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+   <script>
+(function () {
+
+    function hasSwal() {
+        if (!window.Swal) {
+            console.error("SweetAlert2 chưa được load");
+            return false;
+        }
+        return true;
+    }
+
+    // ===== HUỶ LỊCH – 2 BƯỚC XÁC NHẬN =====
+    document.querySelectorAll(".js-cancel-form").forEach(form => {
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (!hasSwal()) return;
+
+            const customer = form.getAttribute("data-customer") || "khách";
+            const service  = form.getAttribute("data-service") || "dịch vụ";
+            const time     = form.getAttribute("data-time") || "";
+
+            // ===== BƯỚC 1 =====
+            const step1 = await Swal.fire({
+                icon: "warning",
+                title: "Bạn có chắc muốn huỷ lịch hẹn?",
+                html: `
+                    <div style="text-align:left">
+                        <div><b>Khách:</b> ${customer}</div>
+                        <div><b>Dịch vụ:</b> ${service}</div>
+                        ${time ? `<div><b>Thời gian:</b> ${time}</div>` : ""}
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: "Tiếp tục",
+                cancelButtonText: "Không",
+                reverseButtons: true
+            });
+
+            if (!step1.isConfirmed) return;
+
+            // ===== BƯỚC 2 =====
+            const step2 = await Swal.fire({
+                icon: "error",
+                title: "XÁC NHẬN HUỶ",
+                text: "Hành động này sẽ huỷ lịch hẹn và không thể hoàn tác.",
+                showCancelButton: true,
+                confirmButtonText: "Huỷ lịch",
+                cancelButtonText: "Giữ lịch",
+                confirmButtonColor: "#dc2626",
+                reverseButtons: true
+            });
+
+            if (step2.isConfirmed) {
+                form.submit();
+            }
+        });
+    });
+
+})();
+</script>
+
+}

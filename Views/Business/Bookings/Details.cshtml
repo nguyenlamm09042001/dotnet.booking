@@ -1,0 +1,423 @@
+@model booking.ViewModels.BusinessBookingDetailsVm
+
+@{
+    ViewData["Title"] = "Chi tiết lịch hẹn";
+
+    var fullName = User.FindFirst("FullName")?.Value;
+    var displayName = string.IsNullOrWhiteSpace(fullName) ? (User.Identity?.Name ?? "bạn") : fullName;
+    var now = DateTime.Now;
+
+    string Norm(string? s) => (s ?? "").Trim().ToLowerInvariant();
+
+    string StatusVi(string? s) => Norm(s) switch
+    {
+        "pending" => "Chờ xác nhận",
+        "confirmed" => "Đã xác nhận",
+        "completed" => "Hoàn thành",
+        "canceled" => "Đã hủy",
+        _ => string.IsNullOrWhiteSpace(s) ? "—" : s!
+    };
+
+    string BadgeClass(string? s) => Norm(s) switch
+    {
+        "completed" => "bg-emerald-100 text-emerald-800 ring-1 ring-emerald-200",
+        "canceled"  => "bg-rose-100 text-rose-800 ring-1 ring-rose-200",
+        "confirmed" => "bg-sky-100 text-sky-800 ring-1 ring-sky-200",
+        "pending"   => "bg-amber-100 text-amber-800 ring-1 ring-amber-200",
+        _           => "bg-slate-100 text-slate-800 ring-1 ring-slate-200"
+    };
+
+    // giữ query để quay lại đúng trang list
+    var req = ViewContext.HttpContext.Request;
+    var returnUrl = req.Query["returnUrl"].ToString();
+    if (string.IsNullOrWhiteSpace(returnUrl))
+    {
+        // nếu không truyền returnUrl thì fallback về Index
+        returnUrl = Url.Action("Index", "BusinessBookings") ?? "/BusinessBookings/Index";
+    }
+
+    string Money(decimal v) => string.Format(System.Globalization.CultureInfo.GetCultureInfo("vi-VN"), "{0:n0} ₫", v);
+
+    string StarsText(int stars)
+    {
+        stars = Math.Clamp(stars, 0, 5);
+        return new string('★', stars) + new string('☆', 5 - stars);
+    }
+
+    var statusNorm = Norm(Model.Status);
+}
+
+<div class="min-h-screen bg-slate-50">
+    <div class="mx-auto max-w-7xl px-4 py-8 sm:py-10">
+
+        <!-- Header -->
+        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+                <div class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600 shadow-sm">
+                    <span class="h-2 w-2 rounded-full bg-indigo-500"></span>
+                    Business Portal
+                </div>
+
+                <h1 class="mt-3 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+                    Chi tiết lịch hẹn
+                </h1>
+
+                <p class="mt-2 text-sm text-slate-600">
+                    Xin chào <span class="font-semibold text-slate-900">@displayName</span> •
+                    <span class="text-slate-500">Cập nhật lúc</span>
+                    <span class="font-semibold text-slate-700">@now.ToString("HH:mm")</span>
+                </p>
+            </div>
+
+            <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <a href="@returnUrl"
+                   class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
+                    ← Quay lại danh sách
+                </a>
+
+                <a asp-controller="BusinessServices" asp-action="Index"
+                   class="inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700">
+                    Quản lý dịch vụ →
+                </a>
+            </div>
+        </div>
+
+        <!-- Summary bar -->
+        <div class="mt-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div class="flex items-start gap-3">
+                    <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 ring-1 ring-slate-200">
+                        <span class="text-sm font-black text-slate-900">#@Model.Id</span>
+                    </div>
+
+                    <div>
+                        <div class="text-sm font-semibold text-slate-900">
+                            @Model.CustomerName
+                            <span class="mx-2 text-slate-300">•</span>
+                            <span class="text-slate-700">@Model.Phone</span>
+                        </div>
+
+                        <div class="mt-1 text-sm text-slate-600">
+                            @Model.Date.ToString("dd/MM/yyyy") • @Model.Time.ToString(@"hh\:mm")
+                            <span class="mx-2 text-slate-300">•</span>
+                            <span class="font-semibold text-slate-700">@Model.ServiceName</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col items-start gap-2 sm:items-end">
+                    <span class="inline-flex items-center rounded-full px-3 py-1 text-xs font-bold @BadgeClass(Model.Status)">
+                        @StatusVi(Model.Status)
+                    </span>
+
+                    <div class="text-xs text-slate-500">
+                        Tạo lúc: <span class="font-semibold text-slate-700">@Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="mt-4 flex flex-wrap gap-2 justify-end">
+                @if (statusNorm == "pending")
+                {
+                    <form asp-controller="BusinessBookings" asp-action="Approve" method="post" class="inline-block">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                        <button type="submit"
+                                class="inline-flex h-11 items-center justify-center rounded-2xl bg-emerald-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-emerald-700">
+                            Duyệt lịch
+                        </button>
+                    </form>
+
+                    <form asp-controller="BusinessBookings" asp-action="Cancel" method="post"
+                          class="inline-block js-cancel-form"
+                          data-customer="@Model.CustomerName"
+                          data-service="@Model.ServiceName"
+                          data-time="@($"{Model.Date:dd/MM/yyyy} • {Model.Time:hh\\:mm}")">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                        <button type="submit"
+                                class="inline-flex h-11 items-center justify-center rounded-2xl bg-rose-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-rose-700">
+                            Huỷ lịch
+                        </button>
+                    </form>
+                }
+                else if (statusNorm == "confirmed")
+                {
+                    <form asp-controller="BusinessBookings" asp-action="Complete" method="post"
+                          class="inline-block js-complete-form"
+                          data-customer="@Model.CustomerName"
+                          data-service="@Model.ServiceName"
+                          data-time="@($"{Model.Date:dd/MM/yyyy} • {Model.Time:hh\\:mm}")">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                        <button type="submit"
+                                class="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-bold text-white shadow-sm hover:bg-slate-800">
+                            Hoàn thành
+                        </button>
+                    </form>
+
+                    <form asp-controller="BusinessBookings" asp-action="Cancel" method="post"
+                          class="inline-block js-cancel-form"
+                          data-customer="@Model.CustomerName"
+                          data-service="@Model.ServiceName"
+                          data-time="@($"{Model.Date:dd/MM/yyyy} • {Model.Time:hh\\:mm}")">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                        <button type="submit"
+                                class="inline-flex h-11 items-center justify-center rounded-2xl bg-rose-600 px-4 text-sm font-bold text-white shadow-sm hover:bg-rose-700">
+                            Huỷ lịch
+                        </button>
+                    </form>
+                }
+                else
+                {
+                    <div class="text-sm text-slate-500">
+                        Lịch hẹn đã ở trạng thái <span class="font-semibold text-slate-700">@StatusVi(Model.Status)</span>.
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Content grid -->
+        <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+
+            <!-- Booking info -->
+            <div class="lg:col-span-2 space-y-6">
+
+                <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div class="text-lg font-extrabold text-slate-900">Thông tin lịch hẹn</div>
+                    <div class="mt-1 text-sm text-slate-600">Chi tiết khách, thời gian và ghi chú.</div>
+
+                    <div class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                            <div class="text-xs font-bold uppercase tracking-wide text-slate-500">Khách hàng</div>
+                            <div class="mt-2 text-sm font-semibold text-slate-900">@Model.CustomerName</div>
+                            <div class="mt-1 text-sm text-slate-700">@Model.Phone</div>
+                        </div>
+
+                        <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                            <div class="text-xs font-bold uppercase tracking-wide text-slate-500">Ngày giờ</div>
+                            <div class="mt-2 text-sm font-semibold text-slate-900">@Model.Date.ToString("dd/MM/yyyy")</div>
+                            <div class="mt-1 text-sm text-slate-700">@Model.Time.ToString(@"hh\:mm")</div>
+                        </div>
+
+                        <div class="rounded-2xl border border-slate-200 bg-white p-4 sm:col-span-2">
+                            <div class="text-xs font-bold uppercase tracking-wide text-slate-500">Ghi chú</div>
+                            <div class="mt-2 text-sm text-slate-700">
+                                @(string.IsNullOrWhiteSpace(Model.Note) ? "— Không có ghi chú —" : Model.Note)
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div class="text-lg font-extrabold text-slate-900">Đánh giá (nếu có)</div>
+                    <div class="mt-1 text-sm text-slate-600">Dựa theo bảng ServiceReviews (BookingOrderId).</div>
+
+                    @if (Model.ReviewStars == null && string.IsNullOrWhiteSpace(Model.ReviewComment))
+                    {
+                        <div class="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-600">
+                            Chưa có đánh giá cho lịch hẹn này.
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="mt-4 rounded-2xl border border-slate-200 bg-white p-5">
+                            <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                <div class="text-sm font-bold text-slate-900">
+                                    @StarsText(Model.ReviewStars ?? 0)
+                                    <span class="ml-2 text-slate-500 font-semibold">
+                                        (@(Model.ReviewStars ?? 0)/5)
+                                    </span>
+                                </div>
+
+                                @if (Model.ReviewCreatedAt != null)
+                                {
+                                    <div class="text-xs text-slate-500">
+                                        Tạo lúc: <span class="font-semibold text-slate-700">@Model.ReviewCreatedAt.Value.ToString("dd/MM/yyyy HH:mm")</span>
+                                    </div>
+                                }
+                            </div>
+
+                            @if (!string.IsNullOrWhiteSpace(Model.ReviewComment))
+                            {
+                                <div class="mt-3 text-sm text-slate-700 whitespace-pre-line">@Model.ReviewComment</div>
+                            }
+
+                            @if (Model.ReviewRating != null)
+                            {
+                                <div class="mt-3 text-xs text-slate-500">
+                                    Rating (int): <span class="font-semibold text-slate-700">@Model.ReviewRating</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+
+            </div>
+
+            <!-- Service card -->
+            <div class="space-y-6">
+
+                <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div class="text-lg font-extrabold text-slate-900">Thông tin dịch vụ</div>
+                    <div class="mt-1 text-sm text-slate-600">Lấy từ bảng Services.</div>
+
+                    <div class="mt-5">
+                        <div class="text-sm font-extrabold text-slate-900">@Model.ServiceName</div>
+                        <div class="mt-1 text-sm text-slate-600">
+                            @(string.IsNullOrWhiteSpace(Model.Category) ? "—" : Model.Category)
+                        </div>
+
+                        @if (!string.IsNullOrWhiteSpace(Model.Description))
+                        {
+                            <div class="mt-3 text-sm text-slate-700 line-clamp-5">
+                                @Model.Description
+                            </div>
+                        }
+
+                        <div class="mt-4 grid grid-cols-2 gap-3">
+                            <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                                <div class="text-xs font-bold uppercase tracking-wide text-slate-500">Giá</div>
+                                <div class="mt-2 text-sm font-extrabold text-slate-900">@Money(Model.Price)</div>
+                            </div>
+
+                            <div class="rounded-2xl border border-slate-200 bg-white p-4">
+                                <div class="text-xs font-bold uppercase tracking-wide text-slate-500">Thời lượng</div>
+                                <div class="mt-2 text-sm font-extrabold text-slate-900">@Model.DurationMinutes phút</div>
+                            </div>
+
+                            <div class="rounded-2xl border border-slate-200 bg-white p-4 col-span-2">
+                                <div class="text-xs font-bold uppercase tracking-wide text-slate-500">Địa điểm</div>
+                                <div class="mt-2 text-sm text-slate-700">
+                                    @(string.IsNullOrWhiteSpace(Model.Location) ? "—" : Model.Location)
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4 flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                            <div class="text-sm text-slate-700">
+                                Trạng thái dịch vụ:
+                                <span class="font-bold @(Model.ServiceIsActive ? "text-emerald-700" : "text-rose-700")">
+                                    @(Model.ServiceIsActive ? "Đang hoạt động" : "Tạm tắt")
+                                </span>
+                            </div>
+
+                           <a asp-controller="BusinessBookings"
+   asp-action="Details"
+   asp-route-id="@Model.Id"
+   asp-route-returnUrl="@(ViewContext.HttpContext.Request.Path + ViewContext.HttpContext.Request.QueryString)"
+   class="inline-flex h-10 min-w-[86px] items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-bold text-slate-700 shadow-sm hover:bg-slate-50">
+    Xem
+</a>
+
+                        </div>
+                    </div>
+                </div>
+
+                <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <div class="text-lg font-extrabold text-slate-900">Gợi ý thao tác</div>
+                    <div class="mt-2 text-sm text-slate-600">
+                        - Pending: duyệt hoặc huỷ.<br />
+                        - Confirmed: hoàn thành hoặc huỷ.<br />
+                        - Completed/Canceled: chỉ xem.
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+(function () {
+    function hasSwal() {
+        if (!window.Swal) {
+            console.error("SweetAlert2 chưa được load");
+            return false;
+        }
+        return true;
+    }
+
+    // ===== HUỶ LỊCH – 2 BƯỚC =====
+    document.querySelectorAll(".js-cancel-form").forEach(form => {
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (!hasSwal()) return;
+
+            const customer = form.getAttribute("data-customer") || "khách";
+            const service  = form.getAttribute("data-service") || "dịch vụ";
+            const time     = form.getAttribute("data-time") || "";
+
+            const step1 = await Swal.fire({
+                icon: "warning",
+                title: "Bạn có chắc muốn huỷ lịch hẹn?",
+                html: `
+                    <div style="text-align:left">
+                        <div><b>Khách:</b> ${customer}</div>
+                        <div><b>Dịch vụ:</b> ${service}</div>
+                        ${time ? `<div><b>Thời gian:</b> ${time}</div>` : ""}
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: "Tiếp tục",
+                cancelButtonText: "Không",
+                reverseButtons: true
+            });
+
+            if (!step1.isConfirmed) return;
+
+            const step2 = await Swal.fire({
+                icon: "error",
+                title: "XÁC NHẬN HUỶ",
+                text: "Hành động này sẽ huỷ lịch hẹn và không thể hoàn tác.",
+                showCancelButton: true,
+                confirmButtonText: "Huỷ lịch",
+                cancelButtonText: "Giữ lịch",
+                confirmButtonColor: "#dc2626",
+                reverseButtons: true
+            });
+
+            if (step2.isConfirmed) form.submit();
+        });
+    });
+
+    // ===== HOÀN THÀNH – 1 BƯỚC =====
+    document.querySelectorAll(".js-complete-form").forEach(form => {
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            if (!hasSwal()) return;
+
+            const customer = form.getAttribute("data-customer") || "khách";
+            const service  = form.getAttribute("data-service") || "dịch vụ";
+            const time     = form.getAttribute("data-time") || "";
+
+            const ok = await Swal.fire({
+                icon: "question",
+                title: "Xác nhận hoàn thành lịch hẹn?",
+                html: `
+                    <div style="text-align:left">
+                        <div><b>Khách:</b> ${customer}</div>
+                        <div><b>Dịch vụ:</b> ${service}</div>
+                        ${time ? `<div><b>Thời gian:</b> ${time}</div>` : ""}
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: "Hoàn thành",
+                cancelButtonText: "Để sau",
+                reverseButtons: true
+            });
+
+            if (ok.isConfirmed) form.submit();
+        });
+    });
+
+})();
+</script>
+}

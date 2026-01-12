@@ -1,0 +1,91 @@
+@model booking.ViewModels.LoginVm
+
+@{
+    ViewData["Title"] = "Login";
+}
+
+<div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 to-blue-100 px-4">
+    <div class="w-full max-w-md bg-white rounded-2xl shadow-xl border border-gray-100">
+
+        <!-- Header -->
+        <div class="px-8 pt-8 pb-6 text-center">
+            <h1 class="text-2xl font-bold text-gray-800">Welcome back</h1>
+            <p class="text-sm text-gray-500 mt-1">
+                Sign in to manage your bookings
+            </p>
+        </div>
+
+        <!-- Form -->
+        <form
+              asp-controller="Account"
+              asp-action="Login"
+              method="post"
+              class="px-8 pb-8 space-y-5">
+            @Html.AntiForgeryToken()
+
+            <div>
+                <label asp-for="Email" class="block text-sm font-medium text-gray-600 mb-1"></label>
+                <input asp-for="Email"
+                       autocomplete="email"
+                       class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900
+                              placeholder:text-gray-400
+                              focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                       placeholder="you@example.com" />
+                <span asp-validation-for="Email" class="text-xs text-red-600"></span>
+            </div>
+
+            <div>
+                <label asp-for="Password" class="block text-sm font-medium text-gray-600 mb-1"></label>
+                <input asp-for="Password"
+                       type="password"
+                       autocomplete="current-password"
+                       class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm text-gray-900
+                              placeholder:text-gray-400
+                              focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                       placeholder="••••••••" />
+                <span asp-validation-for="Password" class="text-xs text-red-600"></span>
+            </div>
+
+            <!-- ✅ ValidationSummary chỉ để fallback (khi JS/Swal lỗi) -->
+            <div class="text-xs text-red-600">
+                @Html.ValidationSummary(excludePropertyErrors: true)
+            </div>
+
+            <button type="submit"
+                    class="w-full bg-indigo-600 text-white py-2.5 rounded-lg font-semibold
+                           hover:bg-indigo-700 transition duration-200 shadow-md">
+                Sign in
+            </button>
+        </form>
+
+        <!-- Footer -->
+        <div class="border-t px-8 py-4 text-center text-sm bg-gray-50 rounded-b-2xl">
+            <span class="text-gray-600">Don’t have an account?</span>
+            <a asp-controller="Account"
+               asp-action="Register"
+               class="ml-1 text-indigo-600 font-medium hover:underline">
+                Register
+            </a>
+        </div>
+
+    </div>
+</div>
+
+@section Scripts {
+    <!-- ✅ Client-side validation -->
+    <partial name="_ValidationScriptsPartial" />
+
+    <!-- ✅ Optional: nếu ModelState invalid mà controller không set TempData Swal,
+       thì view tự bật Swal (fallback). Nếu controller đã set TempData thì Layout sẽ lo. -->
+    @if (!ViewData.ModelState.IsValid && TempData["SwalType"] == null)
+    {
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                // showSwal() đã được define trong _Layout.cshtml
+                if (window.showSwal) {
+                    showSwal("warning", "Thiếu thông tin", "Vui lòng kiểm tra lại email và mật khẩu.");
+                }
+            });
+        </script>
+    }
+}

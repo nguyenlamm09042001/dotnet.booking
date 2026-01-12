@@ -1,0 +1,23 @@
+version: "3.9"
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: booking-db
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "YourStrong@123"
+    ports:
+      - "1433:1433"
+
+  web:
+    image: mcr.microsoft.com/dotnet/aspnet:8.0
+    container_name: booking-web
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: dotnet run
+    ports:
+      - "5080:8080"
+    depends_on:
+      - db

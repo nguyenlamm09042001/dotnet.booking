@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "@tailwindcss/cli": "^4.1.18",
+    "tailwindcss": "^4.1.18"
+  },
+  "scripts": {
+    "tw:build": "tailwindcss -i ./Frontend/css/input.css -o ./wwwroot/dist/css/site.css --minify",
+    "tw:watch": "tailwindcss -i ./Frontend/css/input.css -o ./wwwroot/dist/css/site.css --watch"
+  }
+}

@@ -1,0 +1,468 @@
+@model booking.ViewModels.BusinessStaffIndexVm
+@using Microsoft.AspNetCore.Mvc.Rendering
+
+@{
+    ViewData["Title"] = "Nhân viên";
+
+    var q = Model.Q ?? "";
+    var active = (Model.Active ?? "all").ToLower();
+    var sort = (Model.Sort ?? "new").ToLower();
+
+    string Btn(string kind)
+        => kind switch
+        {
+            "primary" => "inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800",
+            "soft" => "inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50",
+            "danger" => "inline-flex items-center justify-center rounded-2xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700",
+            _ => "inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+        };
+
+    string Input()
+        => "mt-1 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm outline-none focus:border-slate-400 focus:ring-0";
+
+    string Select()
+        => "mt-1 w-full rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm outline-none focus:border-slate-400 focus:ring-0";
+
+    string Badge(bool isActive)
+        => isActive
+            ? "inline-flex items-center rounded-full bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200"
+            : "inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200";
+
+    string Chip()
+        => "inline-flex items-center rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200";
+
+    string LinkPage(int p)
+        => Url.Action("Index", "BusinessStaff", new { q, active, sort, page = p })!;
+
+    var activeItems = new List<SelectListItem>
+    {
+        new("Tất cả", "all"),
+        new("Đang hoạt động", "active"),
+        new("Đã khóa", "inactive"),
+    };
+
+    var sortItems = new List<SelectListItem>
+    {
+        new("Mới nhất", "new"),
+        new("Tên A → Z", "name"),
+        new("Email A → Z", "email"),
+        new("Nhiều dịch vụ", "services"),
+    };
+}
+
+<style>
+    /* Center dialog + backdrop giống dashboard */
+    dialog.modal {
+        border: 0;
+        padding: 0;
+        background: transparent;
+        width: 100%;
+        max-width: none;
+    }
+    dialog.modal::backdrop { background: rgba(15, 23, 42, .45); }
+    /* Safari fallback khi showModal */
+    dialog.modal[open] {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+    }
+</style>
+
+<div class="min-h-screen bg-slate-50 text-slate-900">
+    <!-- Top bar (đồng bộ dashboard) -->
+    <header class="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur">
+        <div class="mx-auto max-w-7xl px-4">
+            <div class="flex h-16 items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 ring-1 ring-slate-200">
+                        <span class="text-sm font-black tracking-tight text-slate-900">STF</span>
+                    </div>
+                    <div class="leading-tight">
+                        <div class="text-sm font-extrabold tracking-wide text-slate-900">Nhân viên</div>
+                        <div class="text-xs text-slate-500">Quản lý tài khoản staff & gán dịch vụ</div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button type="button" class="@Btn("primary")" onclick="openDialog('dlgCreate')">
+                        + Thêm nhân viên
+                    </button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="mx-auto max-w-7xl px-4 py-6 space-y-5">
+
+        <!-- Filters card (giống dashboard style) -->
+        <div class="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+            <form method="get" asp-controller="BusinessStaff" asp-action="Index" class="grid gap-3 md:grid-cols-12">
+                <div class="md:col-span-5">
+                    <label class="block text-xs font-semibold text-slate-600">Tìm kiếm</label>
+                    <input name="q" value="@q" placeholder="Tên hoặc email..." class="@Input()" />
+                </div>
+
+                <div class="md:col-span-3">
+                    <label class="block text-xs font-semibold text-slate-600">Trạng thái</label>
+                    <select name="active" class="@Select()" asp-items="activeItems"></select>
+                </div>
+
+                <div class="md:col-span-3">
+                    <label class="block text-xs font-semibold text-slate-600">Sắp xếp</label>
+                    <select name="sort" class="@Select()" asp-items="sortItems"></select>
+                </div>
+
+                <div class="md:col-span-1 flex items-end">
+                    <button class="@Btn("soft") w-full" type="submit">Lọc</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- List card -->
+        <div class="rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div class="flex items-center justify-between gap-2 border-b border-slate-200 px-5 py-4">
+                <div class="text-sm font-extrabold text-slate-900">
+                    Danh sách nhân viên
+                    <span class="ml-2 text-xs font-semibold text-slate-500">(@Model.Total)</span>
+                </div>
+                <div class="text-xs text-slate-500">
+                    Trang @Model.Page / @Model.TotalPages
+                </div>
+            </div>
+
+            @if (!Model.Items.Any())
+            {
+                <div class="p-6 text-sm text-slate-600">
+                    Chưa có nhân viên. Nhấn <span class="font-semibold">“Thêm nhân viên”</span> để tạo mới.
+                </div>
+            }
+            else
+            {
+                <!-- Table kiểu dashboard -->
+                <div class="overflow-x-auto">
+                    <table class="min-w-full text-sm">
+                        <thead class="bg-slate-50 text-xs font-bold text-slate-600">
+                            <tr class="border-b border-slate-200">
+                                <th class="px-5 py-3 text-left">Nhân viên</th>
+                                <th class="px-5 py-3 text-left">Email</th>
+                                <th class="px-5 py-3 text-left">Dịch vụ</th>
+                                <th class="px-5 py-3 text-left">Trạng thái</th>
+                                <th class="px-5 py-3 text-right">Hành động</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-200">
+                            @foreach (var s in Model.Items)
+                            {
+                                var assigned = string.Join(",", s.AssignedServiceIds);
+                                <tr class="hover:bg-slate-50/60">
+                                    <td class="px-5 py-4">
+                                        <div class="font-extrabold text-slate-900">@s.FullName</div>
+                                        <div class="mt-1 text-xs text-slate-500">Tạo: @s.CreatedAt.ToString("dd/MM/yyyy HH:mm")</div>
+                                    </td>
+                                    <td class="px-5 py-4 text-slate-700">@s.Email</td>
+                                    <td class="px-5 py-4">
+                                        <span class="@Chip()">@s.AssignedCount dịch vụ</span>
+                                    </td>
+                                    <td class="px-5 py-4">
+                                        <span class="@Badge(s.IsActive)">
+                                            @(s.IsActive ? "Đang hoạt động" : "Đã khóa")
+                                        </span>
+                                    </td>
+                                    <td class="px-5 py-4">
+                                        <div class="flex justify-end gap-2">
+                                            <button type="button"
+                                                    class="@Btn("soft")"
+                                                    onclick="openAssignModal(@s.StaffUserId, '@(s.FullName.Replace("'", "\\'"))', '@assigned')">
+                                                Gán dịch vụ
+                                            </button>
+
+                                            <button type="button"
+                                                    class="@Btn("soft")"
+                                                    onclick="openEditModal(@s.StaffUserId, '@(s.FullName.Replace("'", "\\'"))', '@(s.Email.Replace("'", "\\'"))')">
+                                                Sửa
+                                            </button>
+
+                                            <form method="post" asp-controller="BusinessStaff" asp-action="ToggleActive">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="staffUserId" value="@s.StaffUserId" />
+                                                <button type="button"
+                                                        class="@Btn("soft")"
+                                                        onclick="confirmSubmit(this.form, '@(s.IsActive ? "Khóa nhân viên này?" : "Mở khóa nhân viên này?")', '@(s.IsActive ? "Nhân viên sẽ không thể nhận lịch mới." : "Nhân viên có thể nhận lịch bình thường.")')">
+                                                    @(s.IsActive ? "Khóa" : "Mở khóa")
+                                                </button>
+                                            </form>
+
+                                            <form method="post" asp-controller="BusinessStaff" asp-action="Delete">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="staffUserId" value="@s.StaffUserId" />
+                                                <button type="button"
+                                                        class="inline-flex items-center justify-center rounded-2xl bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 ring-1 ring-rose-200 hover:bg-rose-100"
+                                                        onclick="confirmSubmit(this.form, 'Xóa nhân viên?', 'Hành động này sẽ xóa staff profile và gỡ gán dịch vụ. Booking cũ vẫn giữ nguyên.')">
+                                                    Xóa
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            <!-- Pagination center giống dashboard -->
+            <div class="flex items-center justify-center gap-2 border-t border-slate-200 px-4 py-4">
+                <a class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 @(Model.Page<=1 ? "pointer-events-none opacity-50" : "")"
+                   href="@(Model.Page<=1 ? "#" : LinkPage(Model.Page-1))">
+                    ← Trước
+                </a>
+
+                <span class="rounded-2xl bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-800 ring-1 ring-slate-200">
+                    Trang @Model.Page / @Model.TotalPages
+                </span>
+
+                <a class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50 @(Model.Page>=Model.TotalPages ? "pointer-events-none opacity-50" : "")"
+                   href="@(Model.Page>=Model.TotalPages ? "#" : LinkPage(Model.Page+1))">
+                    Sau →
+                </a>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- =========================
+     MODAL: CREATE STAFF
+========================= -->
+<dialog id="dlgCreate" class="modal">
+    <div class="w-[min(760px,94vw)] rounded-3xl border border-slate-200 bg-white shadow-xl">
+        <div class="flex items-start justify-between gap-3 border-b border-slate-200 p-5">
+            <div>
+                <div class="text-lg font-extrabold text-slate-900">Thêm nhân viên</div>
+                <div class="mt-1 text-sm text-slate-600">Tạo tài khoản staff và gán dịch vụ ngay tại đây.</div>
+            </div>
+            <button class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold hover:bg-slate-50"
+                    onclick="closeDialog('dlgCreate')">✕</button>
+        </div>
+
+        <form method="post" asp-controller="BusinessStaff" asp-action="Create" class="p-5 space-y-4">
+            @Html.AntiForgeryToken()
+
+            <div class="grid gap-3 md:grid-cols-2">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600">Họ tên</label>
+                    <input name="fullName" required class="@Input()" placeholder="Ví dụ: Nguyễn Văn A" />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600">Email</label>
+                    <input name="email" type="email" required class="@Input()" placeholder="staff@gmail.com" />
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-600">Mật khẩu</label>
+                <input name="password" type="password" required minlength="6" class="@Input()" placeholder="Tối thiểu 6 ký tự" />
+            </div>
+
+            <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <div class="text-sm font-extrabold text-slate-900">Gán dịch vụ</div>
+                        <div class="mt-1 text-xs text-slate-600">Tick dịch vụ để nhân viên có thể nhận lịch.</div>
+                    </div>
+                    <span class="text-xs text-slate-500">@Model.AllServices.Count dịch vụ</span>
+                </div>
+
+                @if (Model.AllServices.Count == 0)
+                {
+                    <div class="mt-3 text-sm text-slate-600">Chưa có dịch vụ nào. Hãy tạo dịch vụ trước.</div>
+                }
+                else
+                {
+                    <div class="mt-3 grid gap-2 md:grid-cols-2 max-h-[320px] overflow-auto pr-1">
+                        @foreach (var sv in Model.AllServices)
+                        {
+                            <label class="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm hover:bg-slate-50">
+                                <input type="checkbox" name="serviceIds" value="@sv.Id" class="h-4 w-4" />
+                                <span class="flex-1 truncate text-slate-900">@sv.Name</span>
+                                <span class="text-xs @(sv.IsActive ? "text-emerald-700" : "text-slate-500")">
+                                    @(sv.IsActive ? "Đang bật" : "Tắt")
+                                </span>
+                            </label>
+                        }
+                    </div>
+                }
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-1">
+                <button type="button" class="@Btn("soft")" onclick="closeDialog('dlgCreate')">Hủy</button>
+                <button type="submit" class="@Btn("primary")">Tạo nhân viên</button>
+            </div>
+        </form>
+    </div>
+</dialog>
+
+<!-- =========================
+     MODAL: EDIT STAFF
+========================= -->
+<dialog id="dlgEdit" class="modal">
+    <div class="w-[min(760px,94vw)] rounded-3xl border border-slate-200 bg-white shadow-xl">
+        <div class="flex items-start justify-between gap-3 border-b border-slate-200 p-5">
+            <div>
+                <div class="text-lg font-extrabold text-slate-900">Sửa nhân viên</div>
+                <div class="mt-1 text-sm text-slate-600">Cập nhật tên, email hoặc đổi mật khẩu.</div>
+            </div>
+            <button class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold hover:bg-slate-50"
+                    onclick="closeDialog('dlgEdit')">✕</button>
+        </div>
+
+        <form method="post" asp-controller="BusinessStaff" asp-action="Edit" class="p-5 space-y-4">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="staffUserId" id="editStaffUserId" />
+
+            <div class="grid gap-3 md:grid-cols-2">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600">Họ tên</label>
+                    <input name="fullName" id="editFullName" required class="@Input()" />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600">Email</label>
+                    <input name="email" id="editEmail" type="email" required class="@Input()" />
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-600">Mật khẩu mới (không bắt buộc)</label>
+                <input name="newPassword" type="password" minlength="6" class="@Input()" placeholder="Để trống nếu không đổi" />
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-1">
+                <button type="button" class="@Btn("soft")" onclick="closeDialog('dlgEdit')">Hủy</button>
+                <button type="submit" class="@Btn("primary")">Lưu</button>
+            </div>
+        </form>
+    </div>
+</dialog>
+
+<!-- =========================
+     MODAL: ASSIGN SERVICES
+========================= -->
+<dialog id="dlgAssign" class="modal">
+    <div class="w-[min(860px,94vw)] rounded-3xl border border-slate-200 bg-white shadow-xl">
+        <div class="flex items-start justify-between gap-3 border-b border-slate-200 p-5">
+            <div>
+                <div class="text-lg font-extrabold text-slate-900">Gán dịch vụ</div>
+                <div class="mt-1 text-sm text-slate-600">
+                    Nhân viên: <span id="assignStaffName" class="font-extrabold text-slate-900"></span>
+                </div>
+            </div>
+            <button class="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold hover:bg-slate-50"
+                    onclick="closeDialog('dlgAssign')">✕</button>
+        </div>
+
+        <form method="post" asp-controller="BusinessStaff" asp-action="AssignServices" class="p-5 space-y-4">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="staffUserId" id="assignStaffUserId" />
+
+            <div class="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <div class="text-sm font-extrabold text-slate-900">Danh sách dịch vụ</div>
+                <div class="mt-1 text-xs text-slate-600">Tick dịch vụ để nhân viên có thể nhận lịch.</div>
+
+                <div class="mt-3 grid gap-2 md:grid-cols-2 max-h-[360px] overflow-auto pr-1">
+                    @foreach (var sv in Model.AllServices)
+                    {
+                        <label class="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm hover:bg-slate-50">
+                            <input type="checkbox" name="serviceIds" value="@sv.Id" class="h-4 w-4 assignChk" />
+                            <span class="flex-1 truncate text-slate-900">@sv.Name</span>
+                            <span class="text-xs @(sv.IsActive ? "text-emerald-700" : "text-slate-500")">
+                                @(sv.IsActive ? "Đang bật" : "Tắt")
+                            </span>
+                        </label>
+                    }
+                </div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 pt-1">
+                <button type="button" class="@Btn("soft")" onclick="closeDialog('dlgAssign')">Hủy</button>
+                <button type="submit" class="@Btn("primary")">Lưu gán dịch vụ</button>
+            </div>
+        </form>
+    </div>
+</dialog>
+
+@section Scripts {
+<script>
+    // set selected for selects (tránh RZ1031, vẫn giữ đúng trạng thái)
+    (function(){
+        const a = document.querySelector('select[name="active"]');
+        const s = document.querySelector('select[name="sort"]');
+        if (a) a.value = "@active";
+        if (s) s.value = "@sort";
+    })();
+
+    function openDialog(id) {
+        const dlg = document.getElementById(id);
+        if (!dlg) return;
+        if (typeof dlg.showModal === "function") dlg.showModal();
+        else dlg.setAttribute("open", "open");
+    }
+    function closeDialog(id) {
+        const dlg = document.getElementById(id);
+        if (!dlg) return;
+        if (typeof dlg.close === "function") dlg.close();
+        else dlg.removeAttribute("open");
+    }
+
+    function openEditModal(staffUserId, fullName, email) {
+        document.getElementById("editStaffUserId").value = staffUserId;
+        document.getElementById("editFullName").value = fullName || "";
+        document.getElementById("editEmail").value = email || "";
+        openDialog("dlgEdit");
+    }
+
+    // assignedCsv = "1,2,3"
+    function openAssignModal(staffUserId, staffName, assignedCsv) {
+        document.getElementById("assignStaffUserId").value = staffUserId;
+        document.getElementById("assignStaffName").innerText = staffName || "";
+
+        const assigned = new Set(
+            (assignedCsv || "")
+                .split(",")
+                .map(x => x.trim())
+                .filter(x => x.length > 0)
+        );
+
+        document.querySelectorAll(".assignChk").forEach(chk => {
+            chk.checked = assigned.has(chk.value);
+        });
+
+        openDialog("dlgAssign");
+    }
+
+    function confirmSubmit(form, title, text) {
+        if (!window.Swal) {
+            if (confirm(title + "\n\n" + text)) form.submit();
+            return;
+        }
+
+        Swal.fire({
+            icon: "warning",
+            title: title,
+            text: text,
+            showCancelButton: true,
+            confirmButtonText: "Xác nhận",
+            cancelButtonText: "Hủy",
+            reverseButtons: true
+        }).then((r) => {
+            if (r.isConfirmed) form.submit();
+        });
+    }
+</script>
+}
+
+<style>
+
+    
+</style>

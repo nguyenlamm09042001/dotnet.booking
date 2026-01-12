@@ -1,0 +1,244 @@
+@model booking.ViewModels.ServiceDetailsVm
+
+@{
+    ViewData["Title"] = "Chi tiết dịch vụ";
+    string PriceVnd(decimal v) => string.Format(System.Globalization.CultureInfo.GetCultureInfo("vi-VN"), "{0:N0}đ", v);
+
+    var s = Model.Service;
+}
+
+<div class="min-h-screen bg-slate-50">
+    <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+
+        <!-- Breadcrumb -->
+        <div class="flex items-center gap-2 text-sm text-slate-600">
+            <a asp-controller="User" asp-action="Index" class="text-indigo-600 font-semibold hover:underline">Khám phá</a>
+            <span class="text-slate-400">/</span>
+            <span class="text-slate-900 font-semibold">Chi tiết dịch vụ</span>
+        </div>
+
+        <!-- HERO -->
+        <div class="mt-5 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div class="relative">
+                <div class="h-40 sm:h-48 lg:h-56 bg-gradient-to-r from-slate-950 via-slate-900 to-indigo-950"></div>
+                <div class="pointer-events-none absolute inset-0 opacity-80"
+                     style="background-image:
+                        radial-gradient(circle at 18% 30%, rgba(255,255,255,.18) 0, transparent 45%),
+                        radial-gradient(circle at 80% 35%, rgba(99,102,241,.35) 0, transparent 48%),
+                        radial-gradient(circle at 55% 85%, rgba(16,185,129,.18) 0, transparent 52%);">
+                </div>
+
+                <!-- Top badges -->
+                <div class="absolute left-4 sm:left-6 top-4 sm:top-6 flex flex-wrap gap-2">
+                    <span class="inline-flex items-center rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white ring-1 ring-inset ring-white/20 backdrop-blur">
+                        @s.Category
+                    </span>
+                    @if (s.IsActive)
+                    {
+                        <span class="inline-flex items-center rounded-full bg-emerald-400/20 px-3 py-1 text-xs font-semibold text-emerald-50 ring-1 ring-inset ring-emerald-200/20 backdrop-blur">
+                            Đang mở đặt
+                        </span>
+                    }
+                </div>
+
+                <!-- Title block -->
+                <div class="relative -mt-10 sm:-mt-12 px-4 sm:px-7 pb-5">
+                    <div class="rounded-3xl border border-slate-200 bg-white/90 backdrop-blur shadow-sm p-4 sm:p-5">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div class="min-w-0">
+                                <h1 class="text-xl sm:text-2xl lg:text-3xl font-extrabold tracking-tight text-slate-900 truncate">
+                                    @s.Name
+                                </h1>
+
+                                <div class="mt-3 flex flex-wrap items-center gap-2 text-sm text-slate-700">
+                                    <span class="inline-flex items-center gap-2 rounded-2xl bg-slate-50 px-3 py-1.5 ring-1 ring-inset ring-slate-200">
+                                        <span class="text-amber-500">★</span>
+                                        <b class="text-slate-900">@Model.AvgRating.ToString("0.00")</b>
+                                        <span class="text-slate-500">(@Model.ReviewCount)</span>
+                                    </span>
+
+                                    <span class="inline-flex items-center gap-2 rounded-2xl bg-slate-50 px-3 py-1.5 ring-1 ring-inset ring-slate-200">
+                                        <span class="text-slate-500">⏱</span>
+                                        <b class="text-slate-900">@s.DurationMinutes</b>
+                                        <span class="text-slate-600">phút</span>
+                                    </span>
+
+                                    <span class="inline-flex items-center gap-2 rounded-2xl bg-slate-50 px-3 py-1.5 ring-1 ring-inset ring-slate-200">
+                                        <span class="text-slate-500">📍</span>
+                                        <b class="text-slate-900">@s.Location</b>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="shrink-0">
+                                <div class="inline-flex items-center gap-2 rounded-2xl bg-indigo-50 px-3 py-2 ring-1 ring-inset ring-indigo-100">
+                                    <div class="h-9 w-9 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-extrabold">
+                                        %
+                                    </div>
+                                    <div class="leading-tight">
+                                        <div class="text-[11px] font-semibold text-indigo-600">Giá từ</div>
+                                        <div class="text-sm font-extrabold text-slate-900">@PriceVnd(s.Price)</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <p class="mt-4 text-sm leading-6 text-slate-600">
+                            @(!string.IsNullOrWhiteSpace(s.Description)
+                                ? s.Description
+                                : "Dịch vụ chất lượng, đặt lịch nhanh, xác nhận tiện lợi. (Demo mô tả – sau này nối dữ liệu thật.)")
+                        </p>
+
+                        <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            <a asp-controller="Booking" asp-action="Create" asp-route-serviceId="@s.Id"
+                               class="sm:col-span-2 inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition shadow-sm shadow-indigo-600/20">
+                                Đặt ngay
+                                <span class="ml-2">→</span>
+                            </a>
+
+                            <button type="button"
+                                    class="inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 hover:bg-slate-50 hover:shadow-sm transition"
+                                    onclick="window.showSwal?.('info','Gợi ý','Bước tiếp theo: chọn ngày → slot trống → xác nhận.')">
+                                Xem hướng dẫn
+                            </button>
+                        </div>
+
+                        <a asp-controller="Home" asp-action="Index"
+                           class="mt-3 inline-flex w-full items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">
+                            Quay lại danh sách
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sections -->
+        <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-12">
+            <div class="lg:col-span-8 space-y-6">
+
+                <!-- REVIEWS -->
+                <div class="rounded-3xl border border-slate-200 bg-white shadow-sm">
+                    <div class="p-6 sm:p-7">
+                        <div class="flex items-end justify-between gap-3">
+                            <div>
+                                <div class="text-sm font-semibold text-slate-900">Đánh giá</div>
+                                <div class="mt-1 text-sm text-slate-600">
+                                    @if (Model.ReviewCount == 0)
+                                    {
+                                        <span>Chưa có đánh giá.</span>
+                                    }
+                                    else
+                                    {
+                                        <span>@Model.ReviewCount đánh giá • Trung bình @Model.AvgRating.ToString("0.00") ★</span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        @if (Model.ReviewCount == 0)
+                        {
+                            <div class="mt-4 text-sm text-slate-600">
+                                Chưa có đánh giá nào. Hãy là người đầu tiên đánh giá dịch vụ này.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                @foreach (var r in Model.Reviews)
+                                {
+                                    var label = !string.IsNullOrWhiteSpace(r.FullName)
+                                        ? r.FullName!.Trim()
+                                        : $"User #{r.UserId}";
+
+                                    var letter = label[0].ToString().ToUpper();
+
+                                    <div class="rounded-2xl border border-slate-200 p-5 hover:shadow-sm transition">
+                                        <div class="flex items-start justify-between">
+                                            <div class="flex items-center gap-3">
+                                                <div class="h-10 w-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">@letter</div>
+                                                <div>
+                                                    <div class="text-sm font-semibold text-slate-900">@label</div>
+                                                    <div class="text-xs text-slate-500">
+                                                        @r.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <!-- ⭐ hiển thị sao thay vì số -->
+                                            <div class="flex items-center gap-0.5 text-amber-500 text-lg leading-none">
+                                                @for (int i = 1; i <= 5; i++)
+                                                {
+                                                    <span class="@(i <= r.Rating ? "" : "text-slate-300")">★</span>
+                                                }
+                                            </div>
+                                        </div>
+
+                                        @if (!string.IsNullOrWhiteSpace(r.Comment))
+                                        {
+                                            <div class="mt-3 text-sm text-slate-600 leading-6">
+                                                @r.Comment
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Right -->
+            <div class="lg:col-span-4">
+                <div class="lg:sticky lg:top-6 space-y-6">
+                    <div class="rounded-3xl border border-slate-200 bg-white shadow-sm p-6">
+                        <div class="text-sm font-semibold text-slate-900">Nhà cung cấp (demo)</div>
+                        <div class="mt-3 text-sm text-slate-600 leading-7">
+                            <div class="flex items-center justify-between">
+                                <span>Địa chỉ</span>
+                                <b class="text-slate-900">@s.Location</b>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span>Giờ mở cửa</span>
+                                <b class="text-slate-900">09:00 – 20:00</b>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span>Xác nhận nhanh</span>
+                                <b class="text-emerald-700">Có</b>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="rounded-3xl border border-slate-200 bg-white shadow-sm p-6">
+                        <div class="text-sm font-semibold text-slate-900">Hỗ trợ</div>
+                        <div class="mt-3 text-sm text-slate-600 leading-7">
+                            • Chat hỗ trợ (demo)<br />
+                            • Hoàn/huỷ (demo)<br />
+                            • Xác nhận tức thì (demo)
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="py-10 text-center text-xs text-slate-500">
+            © @DateTime.Now.Year Booking
+        </div>
+    </div>
+</div>
+
+<!-- Mobile bottom CTA -->
+<div class="lg:hidden fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/90 backdrop-blur">
+    <div class="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between gap-3">
+        <div class="min-w-0">
+            <div class="text-xs text-slate-500">Giá từ</div>
+            <div class="truncate font-extrabold text-slate-900">@PriceVnd(s.Price)</div>
+        </div>
+        <a asp-controller="Booking" asp-action="Create" asp-route-serviceId="@s.Id"
+           class="shrink-0 inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition shadow-sm shadow-indigo-600/20">
+            Đặt ngay →
+        </a>
+    </div>
+</div>
+
+<div class="h-20 lg:hidden"></div>

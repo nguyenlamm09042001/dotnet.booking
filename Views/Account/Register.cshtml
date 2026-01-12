@@ -1,0 +1,78 @@
+@model booking.ViewModels.RegisterVm
+
+@{
+    ViewData["Title"] = "Register";
+}
+
+<div class="min-h-screen flex items-center justify-center bg-gray-100">
+    <div class="w-full max-w-md bg-white p-8 rounded-xl shadow">
+        <h1 class="text-2xl font-bold text-center mb-6">Create account</h1>
+
+        <form asp-controller="Account" asp-action="Register" method="post" class="space-y-4">
+            @Html.AntiForgeryToken()
+
+            <!-- Email -->
+            <div>
+                <input asp-for="Email" class="w-full border px-3 py-2 rounded-lg" placeholder="Email" />
+                <span asp-validation-for="Email" class="text-sm text-red-600"></span>
+            </div>
+
+            <div>
+                <input asp-for="FullName" class="w-full border px-3 py-2 rounded-lg" placeholder="FullName" />
+                <span asp-validation-for="FullName" class="text-sm text-red-600"></span>
+            </div>
+
+
+            <!-- Password -->
+            <div>
+                <input asp-for="Password" type="password" class="w-full border px-3 py-2 rounded-lg"
+                    placeholder="Password" />
+                <span asp-validation-for="Password" class="text-sm text-red-600"></span>
+            </div>
+
+            <!-- Confirm password -->
+            <div>
+                <input asp-for="ConfirmPassword" type="password" class="w-full border px-3 py-2 rounded-lg"
+                    placeholder="Confirm password" />
+                <span asp-validation-for="ConfirmPassword" class="text-sm text-red-600"></span>
+            </div>
+
+            <!-- 🔹 Account type: User / Business -->
+            <div class="border rounded-lg p-3">
+                <div class="text-sm font-semibold text-gray-700 mb-2">
+                    Bạn đăng ký với tư cách:
+                </div>
+
+                <div class="flex items-center gap-4">
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" asp-for="AccountType" value="user" checked class="accent-green-600" />
+                        <span class="text-sm">Người dùng</span>
+                    </label>
+
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" asp-for="AccountType" value="business" class="accent-green-600" />
+                        <span class="text-sm">Doanh nghiệp</span>
+                    </label>
+                </div>
+
+                <span asp-validation-for="AccountType" class="text-sm text-red-600"></span>
+            </div>
+
+            <!-- Submit -->
+            <button class="w-full bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700">
+                Sign up
+            </button>
+        </form>
+
+        <p class="text-sm text-center mt-4">
+            Already have an account?
+            <a asp-controller="Account" asp-action="Login" class="text-blue-600 hover:underline">
+                Login
+            </a>
+        </p>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
