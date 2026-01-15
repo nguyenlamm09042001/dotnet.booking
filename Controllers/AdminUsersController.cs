@@ -42,7 +42,6 @@ public class AdminUsersController : Controller
             .OrderByDescending(u => u.CreatedAt)
             .ToListAsync();
 
-        // để view giữ lại chữ search nếu bé muốn set value
         ViewBag.Q = q;
 
         return View("~/Views/Admin/User/Index.cshtml", users);

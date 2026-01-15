@@ -10,19 +10,14 @@ namespace Booking.Migrations
         /// <inheritdoc />
       protected override void Up(MigrationBuilder migrationBuilder)
 {
-    migrationBuilder.DropColumn(
-        name: "BusinessUserId",
-        table: "Services");
+     // no-op: column BusinessUserId does not exist in fresh DB
+
 }
 
 protected override void Down(MigrationBuilder migrationBuilder)
 {
-    migrationBuilder.AddColumn<int>(
-        name: "BusinessUserId",
-        table: "Services",
-        type: "int",
-        nullable: false,
-        defaultValue: 0);
+    // no-op
+
 }
 
     }

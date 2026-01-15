@@ -19,7 +19,7 @@ public class StaffController : Controller
         return int.TryParse(s, out var id) ? id : 0;
     }
 
-    // Swal helper giống style dự án bé
+
     private void SetSwal(string type, string title, string message, string? redirect = null)
     {
         TempData["SwalType"] = type;
@@ -29,13 +29,31 @@ public class StaffController : Controller
             TempData["SwalRedirect"] = redirect;
     }
 
+    // ✅ Helper: push notification
+    private async Task PushNotiAsync(int userId, string title, string message, string type = "info", string? link = null)
+    {
+        if (userId <= 0) return;
+
+        _db.Notifications.Add(new booking.Models.Notification
+        {
+            UserId = userId,
+            Title = title,
+            Message = message,
+            Type = type,
+            LinkUrl = link,
+            IsRead = false,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await _db.SaveChangesAsync();
+    }
+
     // GET: /Staff
     public async Task<IActionResult> Index()
     {
         var staffUserId = GetUserId();
         if (staffUserId <= 0) return Forbid();
 
-        // staff profile (để biết business chủ quản + active)
         var sp = await _db.StaffProfiles
             .AsNoTracking()
             .FirstOrDefaultAsync(x => x.UserId == staffUserId);
@@ -49,14 +67,12 @@ public class StaffController : Controller
         var staff = await _db.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Id == staffUserId);
         var staffName = staff?.FullName ?? "Nhân viên";
 
-        // dịch vụ staff được gán
         var assignedServiceIds = await _db.StaffServices
             .AsNoTracking()
             .Where(x => x.StaffUserId == staffUserId)
             .Select(x => x.ServiceId)
             .ToListAsync();
 
-        // booking của staff: thuộc business + được assign StaffUserId
         var today = DateOnly.FromDateTime(DateTime.Today);
         var start = today;
         var end7 = today.AddDays(7);
@@ -130,11 +146,9 @@ public class StaffController : Controller
         var staffUserId = GetUserId();
         if (staffUserId <= 0) return Forbid();
 
-        // check business scope
         var sp = await _db.StaffProfiles.AsNoTracking().FirstOrDefaultAsync(x => x.UserId == staffUserId);
         if (sp == null) return Forbid();
 
-        // booking + service (đảm bảo thuộc business + staff)
         var data = await (
             from b in _db.BookingOrders.AsNoTracking()
             join s in _db.Services.AsNoTracking() on b.ServiceId equals s.Id
@@ -181,7 +195,6 @@ public class StaffController : Controller
             return RedirectToAction("Index");
         }
 
-        // check business scope
         var sp = await _db.StaffProfiles.AsNoTracking().FirstOrDefaultAsync(x => x.UserId == staffUserId);
         if (sp == null) return Forbid();
 
@@ -192,11 +205,9 @@ public class StaffController : Controller
             return RedirectToAction("Index");
         }
 
-        // ensure booking belongs to business of staff
         var service = await _db.Services.AsNoTracking().FirstOrDefaultAsync(x => x.Id == booking.ServiceId);
         if (service == null || service.UserId != sp.BusinessUserId) return Forbid();
 
-        // rule nhẹ: completed phải qua confirmed trước
         var cur = (booking.Status ?? "").ToLower();
         if (toStatus == "completed" && cur != "confirmed")
         {
@@ -206,6 +217,42 @@ public class StaffController : Controller
 
         booking.Status = toStatus;
         await _db.SaveChangesAsync();
+
+        // ✅ push notification cho user đặt
+        string title, msg, type;
+        string link = "/Booking/Index";
+
+        switch (toStatus)
+        {
+            case "confirmed":
+                title = "Booking đã được xác nhận";
+                msg = $"Lịch #{booking.Id} đã được nhân viên xác nhận.";
+                type = "success";
+                link = "/Booking/Index?status=confirmed";
+                break;
+
+            case "completed":
+                title = "Booking đã hoàn thành";
+                msg = $"Lịch #{booking.Id} đã hoàn thành. Bạn có thể vào 'Lịch của tôi' để đánh giá.";
+                type = "success";
+                link = "/Booking/Index?status=completed";
+                break;
+
+            case "canceled":
+                title = "Booking đã bị huỷ";
+                msg = $"Lịch #{booking.Id} đã bị huỷ bởi nhân viên.";
+                type = "warning";
+                link = "/Booking/Index?status=cancelled";
+                break;
+
+            default:
+                title = "Cập nhật booking";
+                msg = $"Lịch #{booking.Id} đã cập nhật trạng thái: {toStatus}.";
+                type = "info";
+                break;
+        }
+
+        await PushNotiAsync(booking.UserId, title, msg, type, link);
 
         string label = toStatus switch
         {
@@ -219,7 +266,7 @@ public class StaffController : Controller
         return RedirectToAction("Index");
     }
 
-    // POST: /Staff/ToggleActive (staff tự khóa/mở để nhận lịch)
+    // POST: /Staff/ToggleActive
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ToggleActive()
@@ -237,7 +284,7 @@ public class StaffController : Controller
         return RedirectToAction("Index");
     }
 
-    // POST: /Staff/ApproveBooking
+    // POST: /Staff/ApproveBooking (pending -> confirmed)
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> ApproveBooking(int id)
@@ -246,9 +293,7 @@ public class StaffController : Controller
         if (staffUserId <= 0) return Forbid();
 
         var booking = await _db.BookingOrders
-            .FirstOrDefaultAsync(b =>
-                b.Id == id &&
-                b.StaffUserId == staffUserId);
+            .FirstOrDefaultAsync(b => b.Id == id && b.StaffUserId == staffUserId);
 
         if (booking == null)
         {
@@ -265,8 +310,16 @@ public class StaffController : Controller
         booking.Status = "confirmed";
         await _db.SaveChangesAsync();
 
+        // ✅ notification cho user đặt
+        await PushNotiAsync(
+            booking.UserId,
+            "Booking đã được xác nhận",
+            $"Lịch #{booking.Id} đã được nhân viên xác nhận.",
+            "success",
+            "/Booking/Index?status=confirmed"
+        );
+
         SetSwal("success", "Đã xác nhận", $"Bạn đã nhận booking #{booking.Id}");
         return RedirectToAction("Index");
     }
-
 }

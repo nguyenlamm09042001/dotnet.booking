@@ -28,7 +28,7 @@ public static class BusinessGuards
         if (!string.Equals(u.Role, "business", StringComparison.OrdinalIgnoreCase))
             return true;
 
-        var st = (u.BusinessStatus ?? "").Trim().ToLower();
+        var st = (u.Status ?? "").Trim().ToLower();
         if (st == "active") return true;
 
         var msg = st switch
@@ -50,7 +50,7 @@ public static class BusinessGuards
             c.TempData["SwalType"] = type;
             c.TempData["SwalTitle"] = title;
             c.TempData["SwalMessage"] = message;
-            c.TempData["SwalRedirect"] = "/Business/Dashboard"; // đổi route theo project bé
+            c.TempData["SwalRedirect"] = "/Business/Dashboard"; 
         }
 
         ctx.Result = new RedirectResult("/Business/Dashboard"); // đổi route nếu dashboard khác

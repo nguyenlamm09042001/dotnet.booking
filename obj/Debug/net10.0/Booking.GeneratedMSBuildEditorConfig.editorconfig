@@ -30,6 +30,10 @@ build_property._RazorSourceGeneratorDebug =
 build_property.EffectiveAnalysisLevelStyle = 10.0
 build_property.EnableCodeStyleSeverity = 
 
+[/Users/nguyenlam/Documents/Booking/Views/Account/ChooseCategories.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3MvQWNjb3VudC9DaG9vc2VDYXRlZ29yaWVzLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
 [/Users/nguyenlam/Documents/Booking/Views/Account/Login.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3MvQWNjb3VudC9Mb2dpbi5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
@@ -38,12 +42,32 @@ build_metadata.AdditionalFiles.CssScope =
 build_metadata.AdditionalFiles.TargetPath = Vmlld3MvQWNjb3VudC9SZWdpc3Rlci5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
+[/Users/nguyenlam/Documents/Booking/Views/Admin/Businesses/CategoriesBusiness/Create.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3MvQWRtaW4vQnVzaW5lc3Nlcy9DYXRlZ29yaWVzQnVzaW5lc3MvQ3JlYXRlLmNzaHRtbA==
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/nguyenlam/Documents/Booking/Views/Admin/Businesses/CategoriesBusiness/Edit.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3MvQWRtaW4vQnVzaW5lc3Nlcy9DYXRlZ29yaWVzQnVzaW5lc3MvRWRpdC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/nguyenlam/Documents/Booking/Views/Admin/Businesses/CategoriesBusiness/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3MvQWRtaW4vQnVzaW5lc3Nlcy9DYXRlZ29yaWVzQnVzaW5lc3MvSW5kZXguY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/nguyenlam/Documents/Booking/Views/Admin/Businesses/CategoriesService/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3MvQWRtaW4vQnVzaW5lc3Nlcy9DYXRlZ29yaWVzU2VydmljZS9JbmRleC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
 [/Users/nguyenlam/Documents/Booking/Views/Admin/Businesses/Details.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3MvQWRtaW4vQnVzaW5lc3Nlcy9EZXRhaWxzLmNzaHRtbA==
 build_metadata.AdditionalFiles.CssScope = 
 
 [/Users/nguyenlam/Documents/Booking/Views/Admin/Businesses/Index.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3MvQWRtaW4vQnVzaW5lc3Nlcy9JbmRleC5jc2h0bWw=
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/nguyenlam/Documents/Booking/Views/Admin/Businesses/Services/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3MvQWRtaW4vQnVzaW5lc3Nlcy9TZXJ2aWNlcy9JbmRleC5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
 [/Users/nguyenlam/Documents/Booking/Views/Admin/Home/Index.cshtml]
@@ -92,6 +116,10 @@ build_metadata.AdditionalFiles.CssScope =
 
 [/Users/nguyenlam/Documents/Booking/Views/Business/Staff/Index.cshtml]
 build_metadata.AdditionalFiles.TargetPath = Vmlld3MvQnVzaW5lc3MvU3RhZmYvSW5kZXguY3NodG1s
+build_metadata.AdditionalFiles.CssScope = 
+
+[/Users/nguyenlam/Documents/Booking/Views/Notifications/Index.cshtml]
+build_metadata.AdditionalFiles.TargetPath = Vmlld3MvTm90aWZpY2F0aW9ucy9JbmRleC5jc2h0bWw=
 build_metadata.AdditionalFiles.CssScope = 
 
 [/Users/nguyenlam/Documents/Booking/Views/Shared/Error.cshtml]

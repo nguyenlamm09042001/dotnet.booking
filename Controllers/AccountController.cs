@@ -28,8 +28,35 @@ public class AccountController : Controller
             TempData["SwalRedirect"] = redirectUrl;
     }
 
-    // Chuẩn hoá role từ lựa chọn Register
-    // accountType: "user" | "business" (từ UI)
+    // ✅ push noti cho tất cả admin
+    private async Task PushNotiToAllAdminsAsync(string title, string message, string type = "warning", string? linkUrl = null)
+    {
+        var adminIds = await _db.Users
+            .AsNoTracking()
+            .Where(u => (u.Role ?? "").ToLower() == "admin")
+            .Select(u => u.Id)
+            .ToListAsync();
+
+        if (adminIds.Count == 0) return;
+
+        foreach (var adminId in adminIds)
+        {
+            _db.Notifications.Add(new Notification
+            {
+                UserId = adminId,
+                Title = title,
+                Message = message,
+                Type = type,
+                LinkUrl = linkUrl,
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
+        await _db.SaveChangesAsync();
+    }
+
+    // accountType: "user" | "business"
     private static string MapAccountTypeToRole(string? accountType)
     {
         return (accountType ?? "").Trim().ToLowerInvariant() switch
@@ -40,7 +67,7 @@ public class AccountController : Controller
         };
     }
 
-    // Quyết định dashboard sau login theo role
+    // dashboard sau login theo role
     private string GetDashboardUrl(string? role)
     {
         var r = (role ?? "customer").Trim().ToLowerInvariant();
@@ -55,7 +82,7 @@ public class AccountController : Controller
     }
 
     // =========================
-    // REGISTER
+    // REGISTER (STEP 1)
     // =========================
     [HttpGet]
     public IActionResult Register()
@@ -108,9 +135,7 @@ public class AccountController : Controller
             CreatedAt = DateTime.UtcNow
         };
 
-        // =========================
-        // ✅ E) Khi tạo business account: set Status = pending
-        // =========================
+        // business mặc định pending, user thường active
         if ((role ?? "").Trim().ToLowerInvariant() == "business")
         {
             user.Status = "pending";       // pending|active|suspended|rejected
@@ -127,12 +152,153 @@ public class AccountController : Controller
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
 
+        // ✅ FLOW MỚI:
+        // Nếu là business -> bắt buộc qua bước chọn danh mục trước
+        if ((role ?? "").Trim().ToLowerInvariant() == "business")
+        {
+            return RedirectToAction("ChooseCategories", new { id = user.Id });
+        }
+
+        // user thường -> xong là login
         SetSwal(
             "success",
             "Đăng ký thành công",
-            (role == "business")
-                ? "Tài khoản doanh nghiệp đã tạo và đang chờ duyệt/kích hoạt. Bạn có thể đăng nhập sau khi được duyệt."
-                : "Tài khoản đã tạo. Bây giờ bé có thể đăng nhập.",
+            "Tài khoản đã tạo. Bây giờ bạn có thể đăng nhập.",
+            Url.Action("Login", "Account")
+        );
+
+        return RedirectToAction("Login");
+    }
+
+    // =========================
+    // CHOOSE BUSINESS CATEGORIES (STEP 2 - BẮT BUỘC)
+    // =========================
+    [HttpGet]
+    public async Task<IActionResult> ChooseCategories(int id)
+    {
+        var user = await _db.Users.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id);
+        if (user == null)
+        {
+            SetSwal("error", "Không tìm thấy", "Tài khoản không tồn tại.");
+            return RedirectToAction("Register");
+        }
+
+        var role = (user.Role ?? "").Trim().ToLowerInvariant();
+        if (role != "business")
+        {
+            SetSwal("warning", "Không hợp lệ", "Chỉ tài khoản doanh nghiệp mới chọn danh mục.");
+            return RedirectToAction("Login");
+        }
+
+        var categories = await _db.BusinessCategories.AsNoTracking()
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.Name)
+            .Select(x => new CategoryItemVm
+            {
+                Id = x.Id,
+                Name = x.Name,
+                Code = x.Code,
+                IsChecked = false
+            })
+            .ToListAsync();
+
+        if (categories.Count == 0)
+        {
+            SetSwal("error", "Chưa có danh mục", "Hệ thống chưa có danh mục doanh nghiệp. Vui lòng seed dữ liệu.");
+            return RedirectToAction("Register");
+        }
+
+        var vm = new ChooseBusinessCategoriesVm
+        {
+            BusinessUserId = id,
+            Categories = categories
+        };
+
+        return View(vm);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ChooseCategories(ChooseBusinessCategoriesVm vm)
+    {
+        var user = await _db.Users.FirstOrDefaultAsync(x => x.Id == vm.BusinessUserId);
+        if (user == null)
+        {
+            SetSwal("error", "Không tìm thấy", "Tài khoản không tồn tại.");
+            return RedirectToAction("Register");
+        }
+
+        var role = (user.Role ?? "").Trim().ToLowerInvariant();
+        if (role != "business")
+        {
+            SetSwal("warning", "Không hợp lệ", "Chỉ tài khoản doanh nghiệp mới chọn danh mục.");
+            return RedirectToAction("Login");
+        }
+
+        if (vm.CategoryIds == null || vm.CategoryIds.Count == 0)
+        {
+            ModelState.AddModelError("CategoryIds", "Vui lòng chọn ít nhất 1 danh mục.");
+        }
+
+        var validIds = await _db.BusinessCategories.AsNoTracking()
+            .Where(x => x.IsActive)
+            .Select(x => x.Id)
+            .ToListAsync();
+
+        var picked = (vm.CategoryIds ?? new()).Distinct().ToList();
+        if (picked.Any(cid => !validIds.Contains(cid)))
+        {
+            ModelState.AddModelError("CategoryIds", "Có danh mục không hợp lệ.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            vm.Categories = await _db.BusinessCategories.AsNoTracking()
+                .Where(x => x.IsActive)
+                .OrderBy(x => x.Name)
+                .Select(x => new CategoryItemVm
+                {
+                    Id = x.Id,
+                    Name = x.Name,
+                    Code = x.Code,
+                    IsChecked = picked.Contains(x.Id)
+                })
+                .ToListAsync();
+
+            return View(vm);
+        }
+
+        // clear cũ (phòng trường hợp quay lại)
+        var oldLinks = await _db.BusinessCategoryLinks
+            .Where(x => x.BusinessUserId == vm.BusinessUserId)
+            .ToListAsync();
+
+        if (oldLinks.Count > 0)
+            _db.BusinessCategoryLinks.RemoveRange(oldLinks);
+
+        // add mới
+        var links = picked.Select(cid => new BusinessCategoryLink
+        {
+            BusinessUserId = vm.BusinessUserId,
+            CategoryId = cid,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        _db.BusinessCategoryLinks.AddRange(links);
+        await _db.SaveChangesAsync();
+
+        // ✅ SAU KHI CHỌN DANH MỤC XONG -> MỚI BẮN NOTI CHO ADMIN
+        await PushNotiToAllAdminsAsync(
+            "Doanh nghiệp mới chờ duyệt",
+            $"Có doanh nghiệp mới đăng ký: {user.FullName} ({user.Email}).",
+            "warning",
+            "/AdminBusinesses/Index"
+        );
+
+        SetSwal(
+            "success",
+            "Hoàn tất đăng ký doanh nghiệp",
+            "Bạn đã chọn danh mục kinh doanh. Tài khoản đang chờ admin duyệt/kích hoạt.",
             Url.Action("Login", "Account")
         );
 
@@ -178,10 +344,7 @@ public class AccountController : Controller
         }
 
         var role = string.IsNullOrWhiteSpace(user.Role) ? "customer" : user.Role.Trim().ToLowerInvariant();
-
-        var status = string.IsNullOrWhiteSpace(user.Status)
-            ? "active"
-            : user.Status.Trim().ToLowerInvariant();
+        var status = string.IsNullOrWhiteSpace(user.Status) ? "active" : user.Status.Trim().ToLowerInvariant();
 
         // ✅ Chặn business chưa active
         if (role == "business" && status != "active")
@@ -198,7 +361,7 @@ public class AccountController : Controller
             return View(vm);
         }
 
-        // ✅ Chặn staff bị khóa (StaffProfiles.IsActive = false)
+        // ✅ Chặn staff bị khóa
         if (role == "staff")
         {
             var sp = await _db.StaffProfiles.AsNoTracking()
@@ -211,7 +374,6 @@ public class AccountController : Controller
             }
         }
 
-        // ✅ Claims cookie
         var claims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
@@ -237,7 +399,7 @@ public class AccountController : Controller
 
         var redirect = GetDashboardUrl(role);
 
-        SetSwal("success", "Đăng nhập thành công", "Chào mừng bé quay lại!", redirect);
+        SetSwal("success", "Đăng nhập thành công", "Chào mừng bạn quay lại!", redirect);
         return Redirect(redirect);
     }
 

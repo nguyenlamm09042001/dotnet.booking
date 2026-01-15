@@ -266,6 +266,13 @@
         </button>
     </form>
 
+      <a asp-controller="Notifications"
+                       asp-action="Index"
+                       class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                        🔔 Thông báo
+                    </a>
+                    
+
     <!-- Logout -->
     <form asp-controller="Account" asp-action="Logout" method="post" class="inline-block">
         @Html.AntiForgeryToken()

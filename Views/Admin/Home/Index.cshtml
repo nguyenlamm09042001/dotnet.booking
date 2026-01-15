@@ -1,4 +1,5 @@
 @model booking.ViewModels.AdminDashboardVm
+@using System.Text.Json
 
 @{
     ViewData["Title"] = "Bảng điều khiển quản trị";
@@ -80,14 +81,11 @@
 
                 <!-- Hành động -->
                 <div class="flex items-center gap-2">
-                    <button type="button"
-                            class="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-300 bg-white px-3
-                                   text-sm font-semibold text-slate-700 hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                            aria-label="Thông báo">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 22a2.5 2.5 0 002.45-2h-4.9A2.5 2.5 0 0012 22zm7-6V11a7 7 0 00-5-6.71V3a2 2 0 10-4 0v1.29A7 7 0 005 11v5l-2 2v1h18v-1l-2-2z"/>
-                        </svg>
-                    </button>
+                    <a asp-controller="Notifications"
+                       asp-action="Index"
+                       class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                        🔔 Thông báo
+                    </a>
 
                     <form asp-controller="Account" asp-action="Logout" method="post" class="inline-block">
                         @Html.AntiForgeryToken()
@@ -119,15 +117,33 @@
 
                         <a asp-controller="AdminBusinesses" asp-action="Index"
                            class="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-                            <span>Doanh nghiệp</span>
+                            <span>Quản lý doanh nghiệp</span>
                             <span class="text-slate-400">→</span>
                         </a>
 
                         <a asp-controller="AdminUsers" asp-action="Index"
                            class="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
-                            <span>Người dùng</span>
+                            <span>Quản lý người dùng</span>
                             <span class="text-slate-400">→</span>
                         </a>
+
+                        <a asp-controller="AdminServices" asp-action="Index"
+                           class="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                            <span>Quản lý dịch vụ</span>
+                            <span class="text-slate-400">→</span>
+                        </a>
+                            <a asp-controller="AdminCategoriesBusiness" asp-action="Index"
+                           class="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                            <span>Quản lý danh mục doanh nghiệp</span>
+                            <span class="text-slate-400">→</span>
+                        </a>
+
+                              <a asp-controller="AdminCategoriesService" asp-action="Index"
+                           class="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                            <span>Quản lý danh mục dịch vụ</span>
+                            <span class="text-slate-400">→</span>
+                        </a>
+
 
                         <button type="button"
                                 class="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50">
@@ -141,22 +157,6 @@
                             <span class="text-slate-400">↗</span>
                         </button>
                     </nav>
-
-                    <div class="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                        <div class="flex items-start justify-between gap-3">
-                            <div>
-                                <div class="text-sm font-bold text-slate-900">Trạng thái hệ thống</div>
-                                <div class="mt-1 text-sm text-slate-600">Tất cả dịch vụ đang hoạt động</div>
-                            </div>
-                            <span class="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200">
-                                OK
-                            </span>
-                        </div>
-
-                        <div class="mt-3 text-sm text-slate-600">
-                            Cảnh báo: <span class="font-semibold text-slate-900">@Model.SystemAlerts</span>
-                        </div>
-                    </div>
                 </div>
             </aside>
 
@@ -219,7 +219,8 @@
 
                 <!-- Lưới vận hành -->
                 <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
-                    <!-- Pending businesses thật -->
+
+                    <!-- Pending businesses -->
                     <section class="lg:col-span-7 rounded-3xl border border-slate-200 bg-white shadow-sm">
                         <div class="flex flex-col gap-3 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
                             <div>
@@ -253,6 +254,7 @@
                                     <tr class="text-xs font-bold uppercase tracking-wider text-slate-600">
                                         <th class="px-6 py-4">Doanh nghiệp</th>
                                         <th class="px-6 py-4">Email</th>
+                                        <th class="px-6 py-4">Danh mục</th>
                                         <th class="px-6 py-4">Ngày tạo</th>
                                         <th class="px-6 py-4">Trạng thái</th>
                                         <th class="px-6 py-4 text-right">Thao tác</th>
@@ -263,7 +265,7 @@
                                     @if (Model.PendingBusinessesPreview == null || !Model.PendingBusinessesPreview.Any())
                                     {
                                         <tr>
-                                            <td colspan="5" class="px-6 py-6 text-sm text-slate-500">
+                                            <td colspan="6" class="px-6 py-6 text-sm text-slate-500">
                                                 Không có doanh nghiệp pending.
                                             </td>
                                         </tr>
@@ -277,13 +279,47 @@
                                                     <div class="font-semibold text-slate-900">@b.BusinessName</div>
                                                     <div class="text-xs text-slate-500">#BIZ-@b.Id • Risk @b.RiskLevel</div>
                                                 </td>
+
                                                 <td class="px-6 py-4">
                                                     <div class="font-semibold text-slate-900">@b.OwnerEmail</div>
                                                 </td>
+
+                                                <!-- ✅ Danh mục: 2 badge + +N, click mở modal -->
+                                                <td class="px-6 py-4">
+                                                    @if (b.Categories != null && b.Categories.Any())
+                                                    {
+                                                        var catsJson = JsonSerializer.Serialize(b.Categories);
+
+                                                        <button type="button"
+                                                                class="flex flex-wrap gap-2 text-left"
+                                                                onclick='openCatsModal(@b.Id, "@b.BusinessName", @Html.Raw(catsJson))'>
+                                                            @foreach (var c in b.Categories.Take(2))
+                                                            {
+                                                                <span class="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 ring-1 ring-slate-200">
+                                                                    @c
+                                                                </span>
+                                                            }
+
+                                                            @if (b.Categories.Count > 2)
+                                                            {
+                                                                <span class="inline-flex items-center rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-700 ring-1 ring-slate-300 hover:bg-slate-300">
+                                                                    +@(b.Categories.Count - 2)
+                                                                </span>
+                                                            }
+                                                        </button>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-xs font-semibold text-rose-600">Chưa chọn</span>
+                                                    }
+                                                </td>
+
                                                 <td class="px-6 py-4 text-slate-700">@b.CreatedAt.ToString("dd/MM HH:mm")</td>
+
                                                 <td class="px-6 py-4">
                                                     <span class="@BizBadge(b.Status)">@BizText(b.Status)</span>
                                                 </td>
+
                                                 <td class="px-6 py-4">
                                                     <div class="flex justify-end gap-2">
                                                         <a asp-controller="AdminBusinesses" asp-action="Index" asp-route-q="@b.OwnerEmail"
@@ -330,7 +366,7 @@
                         </div>
                     </section>
 
-                    <!-- Bên phải giữ phần users như bé đang có -->
+                    <!-- Bên phải -->
                     <aside class="lg:col-span-5 space-y-6">
 
                         <section class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -409,6 +445,12 @@
                                     <span class="text-slate-400">→</span>
                                 </a>
 
+                                <a asp-controller="AdminServices" asp-action="Index"
+                                   class="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-semibold text-slate-900 hover:bg-slate-50">
+                                    <span>Quản lý dịch vụ hệ thống</span>
+                                    <span class="text-slate-400">→</span>
+                                </a>
+
                                 <button type="button"
                                         class="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white px-4 py-4 text-sm font-semibold text-slate-900 hover:bg-slate-50">
                                     <span>Xuất báo cáo (sắp có)</span>
@@ -431,3 +473,81 @@
         </div>
     </div>
 </div>
+
+<!-- ===== MODAL: DANH MỤC DOANH NGHIỆP ===== -->
+<div id="catsModal"
+     class="fixed inset-0 z-[999] hidden items-center justify-center bg-slate-900/40 p-4">
+    <div class="w-full max-w-md rounded-3xl border border-slate-200 bg-white shadow-xl">
+        <div class="flex items-start justify-between px-5 py-4">
+            <div>
+                <div class="text-base font-extrabold text-slate-900">Danh mục doanh nghiệp</div>
+                <div id="catsModalSub" class="mt-1 text-xs text-slate-500"></div>
+            </div>
+
+            <button type="button"
+                    onclick="closeCatsModal()"
+                    class="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 text-slate-700 hover:bg-slate-200">
+                ✕
+            </button>
+        </div>
+
+        <div class="h-px bg-slate-200"></div>
+
+        <div class="px-5 py-4">
+            <div id="catsModalBody" class="flex flex-wrap gap-2"></div>
+        </div>
+
+        <div class="flex justify-end px-5 pb-5">
+            <button type="button"
+                    onclick="closeCatsModal()"
+                    class="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-900 hover:bg-slate-50">
+                Đóng
+            </button>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    function openCatsModal(bizId, bizName, categories) {
+        const modal = document.getElementById("catsModal");
+        const sub = document.getElementById("catsModalSub");
+        const body = document.getElementById("catsModalBody");
+
+        sub.textContent = `#BIZ-${bizId} • ${bizName} • ${categories.length} danh mục`;
+        body.innerHTML = "";
+
+        categories.forEach(c => {
+            const span = document.createElement("span");
+            span.className =
+                "inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 ring-1 ring-slate-200";
+            span.textContent = c;
+            body.appendChild(span);
+        });
+
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+        document.body.style.overflow = "hidden";
+    }
+
+    function closeCatsModal() {
+        const modal = document.getElementById("catsModal");
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+        document.body.style.overflow = "";
+    }
+
+    // Click nền tối để đóng
+    document.addEventListener("click", function (e) {
+        const modal = document.getElementById("catsModal");
+        if (!modal.classList.contains("hidden") && e.target === modal) {
+            closeCatsModal();
+        }
+    });
+
+    // ESC để đóng
+    document.addEventListener("keydown", function (e) {
+        if (e.key === "Escape") closeCatsModal();
+    });
+</script>
+}

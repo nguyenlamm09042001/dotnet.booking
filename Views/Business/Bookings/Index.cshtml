@@ -137,12 +137,23 @@
 
         <!-- List -->
         <div class="mt-6 rounded-3xl border border-slate-200 bg-white shadow-sm">
-            <div class="flex flex-col gap-2 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                    <div class="text-lg font-extrabold text-slate-900">Danh sách lịch hẹn</div>
-                    <div class="mt-1 text-sm text-slate-600">Duyệt / hủy / hoàn thành ngay tại đây.</div>
-                </div>
-            </div>
+        <div class="flex flex-col gap-3 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+        <div class="text-lg font-extrabold text-slate-900">Danh sách lịch hẹn</div>
+        <div class="mt-1 text-sm text-slate-600">Duyệt / hủy / hoàn thành ngay tại đây.</div>
+    </div>
+
+    <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+   
+
+        <a asp-controller="BusinessBookings" asp-action="ExportExcel"
+           asp-route-q="@q" asp-route-status="@statusFilter" asp-route-date="@dateFilter"
+           class="inline-flex h-11 items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white shadow-sm hover:bg-slate-800">
+            Export Excel
+        </a>
+    </div>
+</div>
+
 
             <div class="h-px bg-slate-200"></div>
 

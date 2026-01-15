@@ -9,4 +9,10 @@ public class ServiceDetailsVm
 
     public double AvgRating { get; set; }
     public int ReviewCount { get; set; }
+
+        public string? Avatar { get; set; }
+
+        public string? OwnerFullName { get; set; }
+public string? OwnerAvatar { get; set; }
+
 }

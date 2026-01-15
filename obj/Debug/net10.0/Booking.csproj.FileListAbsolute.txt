@@ -236,3 +236,4 @@
 /Users/nguyenlam/Documents/Booking/obj/Debug/net10.0/compressed/y8lckf8smo-{0}-5ipweew5fc-5ipweew5fc.gz
 /Users/nguyenlam/Documents/Booking/obj/Debug/net10.0/compressed/68m1bqmk4b-{0}-fsb7gi7di2-fsb7gi7di2.gz
 /Users/nguyenlam/Documents/Booking/obj/Debug/net10.0/compressed/a7sjre9ygq-{0}-k108hpytfs-k108hpytfs.gz
+/Users/nguyenlam/Documents/Booking/obj/Debug/net10.0/Booking.sourcelink.json

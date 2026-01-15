@@ -1,0 +1,89 @@
+@model booking.Models.BusinessCategory
+
+@{
+    ViewData["Title"] = "Thêm danh mục";
+    var now = DateTime.Now;
+}
+
+<div class="min-h-screen bg-white text-slate-900">
+    <header class="sticky top-0 z-40 border-b border-slate-200 bg-white/80 backdrop-blur">
+        <div class="mx-auto max-w-7xl px-4">
+            <div class="flex h-16 items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 ring-1 ring-slate-200">
+                        <span class="text-sm font-black tracking-tight text-slate-900">ADM</span>
+                    </div>
+                    <div class="leading-tight">
+                        <div class="text-sm font-extrabold tracking-wide text-slate-900">THÊM DANH MỤC</div>
+                        <div class="text-xs text-slate-500">@now.ToString("dd/MM/yyyy HH:mm")</div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <a asp-controller="AdminCategories" asp-action="Index"
+                       class="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-900 hover:bg-slate-50">
+                        ← Danh sách
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="mx-auto max-w-7xl px-4 py-8">
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
+
+            <aside class="lg:col-span-3">
+                <div class="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm">
+                    <div class="text-xs font-bold uppercase tracking-wider text-slate-500">Điều hướng</div>
+                    <nav class="mt-4 space-y-2">
+                        <a asp-controller="AdminCategories" asp-action="Index"
+                           class="flex items-center justify-between rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-100">
+                            <span>Danh mục DN</span>
+                            <span class="text-slate-400">↩</span>
+                        </a>
+                    </nav>
+                </div>
+            </aside>
+
+            <main class="lg:col-span-9 space-y-6">
+                <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+                    <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Thêm danh mục doanh nghiệp</h1>
+                    <p class="mt-1 text-sm text-slate-600">Nhập tên + code (không dấu). Ví dụ: hair, beauty, spa…</p>
+
+                    <form asp-controller="AdminCategories" asp-action="Create" method="post" class="mt-6 space-y-4">
+                        @Html.AntiForgeryToken()
+
+                        <div>
+                            <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Tên danh mục</label>
+                            <input asp-for="Name"
+                                   class="mt-1 h-11 w-full rounded-2xl border border-slate-300 bg-white px-3 text-sm text-slate-900
+                                          focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                            <span asp-validation-for="Name" class="mt-1 block text-xs font-semibold text-rose-600"></span>
+                        </div>
+
+                        <div>
+                            <label class="text-xs font-bold uppercase tracking-wider text-slate-500">Code</label>
+                            <input asp-for="Code" placeholder="vd: beauty"
+                                   class="mt-1 h-11 w-full rounded-2xl border border-slate-300 bg-white px-3 text-sm text-slate-900
+                                          focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                            <span asp-validation-for="Code" class="mt-1 block text-xs font-semibold text-rose-600"></span>
+                        </div>
+
+                        <div class="flex items-center justify-between pt-2">
+                            <a asp-controller="AdminCategories" asp-action="Index"
+                               class="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-900 hover:bg-slate-50">
+                                Huỷ
+                            </a>
+
+                            <button type="submit"
+                                    class="inline-flex h-11 items-center justify-center rounded-2xl bg-indigo-600 px-6 text-sm font-semibold text-white hover:bg-indigo-700
+                                           focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                Lưu danh mục
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </main>
+        </div>
+    </div>
+</div>

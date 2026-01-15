@@ -25,4 +25,7 @@ public class User
     public int? BusinessApprovedBy { get; set; }
     public int BusinessRiskLevel { get; set; } = 0;
     public DateTime? BusinessVerifiedAt { get; set; }
+
+    public string? Avatar { get; set; }
+
 }

@@ -1,6 +1,7 @@
 using booking.Data;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
+using booking.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -22,8 +23,10 @@ builder.Services
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddScoped<NotificationService>();
 
 var app = builder.Build();
+await booking.Data.DbSeeder.SeedAsync(app.Services);
 
 if (!app.Environment.IsDevelopment())
 {

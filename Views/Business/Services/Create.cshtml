@@ -3,72 +3,323 @@
     ViewData["Title"] = "Tạo dịch vụ mới";
 }
 
-<div class="min-h-screen bg-slate-50">
-  <div class="mx-auto max-w-3xl px-4 py-8">
-    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div class="flex items-center justify-between">
+<div class="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+  <div class="mx-auto max-w-4xl px-4 py-10">
+
+    <!-- Header -->
+    <div class="mb-6">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 class="text-2xl font-extrabold text-slate-900">Tạo dịch vụ mới</h1>
-          <p class="mt-1 text-sm text-slate-600">Nhập thông tin dịch vụ để bắt đầu nhận lịch.</p>
+          <div class="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">
+            <span class="h-2 w-2 rounded-full bg-indigo-500"></span>
+            Business Services
+          </div>
+
+          <h1 class="mt-3 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+            Tạo dịch vụ mới
+          </h1>
+          <p class="mt-1 text-sm text-slate-600">
+            Nhập thông tin dịch vụ để bắt đầu nhận lịch.
+          </p>
         </div>
-        <a asp-controller="BusinessServices" asp-action="Index"
-           class="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
-          ← Quay lại
-        </a>
+
+        <div class="flex items-center gap-2">
+          <a asp-controller="BusinessServices" asp-action="Index"
+             class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
+            ← Quay lại
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main grid -->
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
+
+      <!-- Form card -->
+      <div class="lg:col-span-8 rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div class="border-b border-slate-200 px-6 py-5">
+          <div class="text-lg font-extrabold text-slate-900">Thông tin dịch vụ</div>
+          <div class="mt-1 text-sm text-slate-600">Thiết lập thumbnail, danh mục, giá và thời lượng.</div>
+        </div>
+
+        <!-- ✅ enctype để upload file -->
+        <form id="serviceCreateForm"
+              asp-action="Create"
+              method="post"
+              enctype="multipart/form-data"
+              class="px-6 py-6 space-y-6">
+          @Html.AntiForgeryToken()
+
+          <!-- ✅ show lỗi tổng -->
+          <div class="text-sm text-rose-600">
+            @Html.ValidationSummary()
+          </div>
+
+          <!-- Thumbnail -->
+          <div class="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+            <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <div class="text-sm font-extrabold text-slate-900">Ảnh dịch vụ (thumbnail)</div>
+                <div class="mt-1 text-xs text-slate-600">JPG/PNG/WEBP, tối đa 3MB.</div>
+              </div>
+
+              <div class="flex items-center gap-4">
+                <div class="relative">
+                  <img id="thumbPreview"
+                       src="@(string.IsNullOrEmpty(Model.Thumbnail) ? "/images/placeholder-service.png" : Model.Thumbnail)"
+                       class="h-20 w-20 rounded-2xl object-cover ring-4 ring-white shadow-sm border border-slate-200" />
+                  <div class="absolute -bottom-2 -right-2 rounded-full bg-white p-1 shadow ring-1 ring-slate-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-slate-700" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M9 2a1 1 0 0 0-1 1v1H6.414a2 2 0 0 0-1.414.586L3.586 6A2 2 0 0 0 3 7.414V19a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3V7.414a2 2 0 0 0-.586-1.414L19 4.586A2 2 0 0 0 17.586 4H16V3a1 1 0 0 0-1-1H9zm7 4h1.586l1.414 1.414V9h-2.126a3.001 3.001 0 0 0-5.748 0H9.126a3.001 3.001 0 0 0-5.748 0H3V7.414L4.414 6H6v1a1 1 0 0 0 2 0V6h8v1a1 1 0 0 0 2 0V6zM12 11a1 1 0 1 1 0 2 1 1 0 0 1 0-2zm-5 8a5 5 0 1 1 10 0H7z"/>
+                    </svg>
+                  </div>
+                </div>
+
+                <div class="flex flex-col gap-2">
+                  <!-- ⚠️ name phải đúng: thumbFile -->
+                  <label class="inline-flex cursor-pointer items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
+                    Chọn ảnh
+                    <input id="thumbFileInput"
+                           type="file"
+                           name="thumbFile"
+                           accept="image/*"
+                           class="hidden" />
+                  </label>
+
+                  <button type="button" id="btnClearThumb"
+                          class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800">
+                    Xoá chọn
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Fields -->
+          <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
+
+            <!-- Name -->
+            <div class="sm:col-span-2">
+              <label class="text-sm font-semibold text-slate-700">Tên dịch vụ</label>
+              <div class="mt-2 relative">
+                <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2Zm0 4a3 3 0 1 1-3 3 3 3 0 0 1 3-3Zm0 14a7.966 7.966 0 0 1-5.5-2.2 4.5 4.5 0 0 1 9 0A7.966 7.966 0 0 1 12 20Z"/>
+                  </svg>
+                </span>
+
+                <input asp-for="Name"
+                       class="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-900
+                              placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300" />
+              </div>
+              <span asp-validation-for="Name" class="mt-1 block text-xs text-rose-600"></span>
+            </div>
+
+            <div>
+  <label class="text-sm font-semibold text-slate-700">Danh mục</label>
+
+  <select asp-for="ServiceCategoryId"
+          asp-items="ViewBag.ServiceCategoryOptions"
+          class="mt-2 h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm text-slate-900
+                 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300">
+    <option value="">-- Chọn danh mục --</option>
+  </select>
+
+  <span asp-validation-for="ServiceCategoryId" class="mt-1 block text-xs text-rose-600"></span>
+</div>
+
+
+            <!-- Location -->
+            <div>
+              <label class="text-sm font-semibold text-slate-700">Địa điểm</label>
+              <input asp-for="Location"
+                     class="mt-2 h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm text-slate-900
+                            focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300" />
+              <span asp-validation-for="Location" class="mt-1 block text-xs text-rose-600"></span>
+            </div>
+
+            <!-- Description -->
+            <div class="sm:col-span-2">
+              <label class="text-sm font-semibold text-slate-700">Mô tả</label>
+              <textarea asp-for="Description" rows="4"
+                        class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900
+                               focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300"></textarea>
+              <span asp-validation-for="Description" class="mt-1 block text-xs text-rose-600"></span>
+            </div>
+
+            <!-- Price -->
+            <div>
+              <label class="text-sm font-semibold text-slate-700">Giá (VND)</label>
+              <input asp-for="Price"
+                     class="mt-2 h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm text-slate-900
+                            focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300" />
+              <span asp-validation-for="Price" class="mt-1 block text-xs text-rose-600"></span>
+            </div>
+
+            <!-- Duration -->
+            <div>
+              <label class="text-sm font-semibold text-slate-700">Thời lượng (phút)</label>
+              <input asp-for="DurationMinutes"
+                     class="mt-2 h-11 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm text-slate-900
+                            focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300" />
+              <span asp-validation-for="DurationMinutes" class="mt-1 block text-xs text-rose-600"></span>
+            </div>
+
+            <!-- Active -->
+            <div class="flex items-end gap-3 sm:col-span-2">
+              <input asp-for="IsActive"
+                     class="h-5 w-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-300" />
+              <label class="text-sm font-semibold text-slate-700">Kích hoạt ngay</label>
+            </div>
+
+          </div>
+
+          <!-- Actions -->
+          <div class="flex flex-col gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center sm:justify-between">
+            <div class="text-xs text-slate-500">
+              * Thumbnail giúp dịch vụ nổi bật hơn trong danh sách.
+            </div>
+
+            <div class="flex items-center gap-2 justify-end">
+              <button type="button" id="btnCancel"
+                      class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-5 py-3
+                             text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
+                Hủy
+              </button>
+
+              <button type="submit"
+                      class="inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-5 py-3
+                             text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                Tạo dịch vụ
+              </button>
+            </div>
+          </div>
+
+        </form>
       </div>
 
-      <form asp-action="Create" method="post" class="mt-6 space-y-4">
-        @Html.AntiForgeryToken()
-
-        <div>
-          <label class="text-sm font-semibold text-slate-900">Tên dịch vụ</label>
-          <input asp-for="Name" class="mt-2 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
-          <span asp-validation-for="Name" class="text-sm text-rose-600"></span>
-        </div>
-
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div>
-            <label class="text-sm font-semibold text-slate-900">Danh mục</label>
-            <input asp-for="Category" class="mt-2 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
-          </div>
-          <div>
-            <label class="text-sm font-semibold text-slate-900">Địa điểm</label>
-            <input asp-for="Location" class="mt-2 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
-          </div>
-        </div>
-
-        <div>
-          <label class="text-sm font-semibold text-slate-900">Mô tả</label>
-          <textarea asp-for="Description" rows="4"
-                    class="mt-2 w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"></textarea>
-        </div>
-
-        <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div>
-            <label class="text-sm font-semibold text-slate-900">Giá (VND)</label>
-            <input asp-for="Price" class="mt-2 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
-          </div>
-          <div>
-            <label class="text-sm font-semibold text-slate-900">Thời lượng (phút)</label>
-            <input asp-for="DurationMinutes" class="mt-2 h-11 w-full rounded-2xl border border-slate-200 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300" />
-          </div>
-          <div class="flex items-end gap-3">
-            <input asp-for="IsActive" class="h-5 w-5" />
-            <label class="text-sm font-semibold text-slate-900">Kích hoạt ngay</label>
+      <!-- Side card -->
+      <div class="lg:col-span-4 space-y-6">
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div class="text-sm font-extrabold text-slate-900">Gợi ý</div>
+          <div class="mt-2 space-y-2 text-sm text-slate-600">
+            <div class="flex gap-2">
+              <span class="mt-1 h-2 w-2 rounded-full bg-indigo-500"></span>
+              <div>Đặt tên rõ ràng: “Cắt tóc nam”, “Gội đầu dưỡng sinh”…</div>
+            </div>
+            <div class="flex gap-2">
+              <span class="mt-1 h-2 w-2 rounded-full bg-emerald-500"></span>
+              <div>Giá nên là số (không ký tự). Ví dụ: 150000</div>
+            </div>
+            <div class="flex gap-2">
+              <span class="mt-1 h-2 w-2 rounded-full bg-amber-500"></span>
+              <div>Thời lượng giúp hệ thống chia slot chính xác.</div>
+            </div>
           </div>
         </div>
 
-        <div class="pt-2 flex justify-end gap-2">
-          <button type="submit"
-                  class="inline-flex h-11 items-center justify-center rounded-2xl bg-indigo-600 px-4 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700">
-            Tạo dịch vụ
-          </button>
+        <div class="rounded-3xl border border-slate-200 bg-gradient-to-br from-indigo-50 to-white p-6 shadow-sm">
+          <div class="text-sm font-extrabold text-slate-900">Nhắc nhỏ</div>
+          <div class="mt-2 text-sm text-slate-700">
+            Nếu upload ảnh mà không thấy đổi ngay, thử hard refresh (Cmd+Shift+R).
+          </div>
         </div>
-      </form>
+      </div>
+
     </div>
   </div>
 </div>
 
 @section Scripts {
   <partial name="_ValidationScriptsPartial" />
+
+  <script>
+    // preview + clear thumbnail + validate size
+    const f = document.getElementById('thumbFileInput');
+    const img = document.getElementById('thumbPreview');
+    const btnClear = document.getElementById('btnClearThumb');
+    const btnCancel = document.getElementById('btnCancel');
+    const form = document.getElementById('serviceCreateForm');
+
+    const originalSrc = img ? img.getAttribute('src') : null;
+
+    if (f && img) {
+      f.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+
+        const maxBytes = 3 * 1024 * 1024;
+        if (file.size > maxBytes) {
+          Swal.fire({
+            icon: 'warning',
+            title: 'File quá lớn',
+            text: 'Vui lòng chọn ảnh tối đa 3MB.'
+          });
+          f.value = '';
+          if (originalSrc) img.src = originalSrc;
+          return;
+        }
+
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
+    if (btnClear && f && img) {
+      btnClear.addEventListener('click', () => {
+        f.value = '';
+        if (originalSrc) img.src = originalSrc;
+      });
+    }
+
+    // cancel -> confirm
+    if (btnCancel) {
+      btnCancel.addEventListener('click', () => {
+        Swal.fire({
+          icon: 'question',
+          title: 'Hủy tạo dịch vụ?',
+          text: 'Các thay đổi chưa lưu sẽ bị mất.',
+          showCancelButton: true,
+          confirmButtonText: 'Hủy tạo',
+          cancelButtonText: 'Ở lại',
+          reverseButtons: true
+        }).then((r) => {
+          if (r.isConfirmed) {
+            window.location.href = '@Url.Action("Index", "BusinessServices")';
+          }
+        });
+      });
+    }
+
+    // confirm submit
+    if (form) {
+      form.addEventListener('submit', function (ev) {
+        ev.preventDefault();
+
+        Swal.fire({
+          icon: 'question',
+          title: 'Tạo dịch vụ?',
+          text: 'Bạn có chắc muốn tạo dịch vụ mới không?',
+          showCancelButton: true,
+          confirmButtonText: 'Tạo',
+          cancelButtonText: 'Hủy',
+          reverseButtons: true,
+          confirmButtonColor: '#4f46e5'
+        }).then((result) => {
+          if (result.isConfirmed) form.submit();
+        });
+      });
+    }
+
+    // swal từ TempData (nếu controller có set)
+    @if (TempData["SwalType"] != null)
+    {
+      <text>
+      Swal.fire({
+        icon: '@TempData["SwalType"]',
+        title: '@TempData["SwalTitle"]',
+        text: '@TempData["SwalMessage"]'
+      });
+      </text>
+    }
+  </script>
 }

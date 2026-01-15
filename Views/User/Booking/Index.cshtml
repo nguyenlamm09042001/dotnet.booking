@@ -30,7 +30,7 @@
             <div>
                 <div class="text-xs text-slate-500">Booking</div>
                 <h1 class="mt-1 text-xl sm:text-2xl font-bold text-slate-900">Lịch của tôi</h1>
-                <p class="mt-1 text-sm text-slate-600">Các lịch hẹn bé đã đặt.</p>
+                <p class="mt-1 text-sm text-slate-600">Các lịch hẹn bạn đã đặt.</p>
             </div>
 
             <a asp-controller="User" asp-action="Index"
@@ -77,6 +77,18 @@
                     var badgeStatus = b.IsCompletedLogic ? "Completed" : b.Status;
                     var badgeText = b.IsCompletedLogic ? "Hoàn tất" : StatusText(b.Status);
 
+                    // ===== Cancel rule: within 10 minutes since created =====
+                 var createdLocal = b.CreatedAt.ToLocalTime();
+var cancelDeadline = createdLocal.AddMinutes(10);
+var nowLocal = DateTime.Now;
+
+var st = (b.Status ?? "").Trim().ToLowerInvariant();
+
+// chỉ cho huỷ khi pending + trong 10 phút
+var canCancel = (st == "pending") && nowLocal <= cancelDeadline;
+var remainSeconds = (int)Math.Max(0, (cancelDeadline - nowLocal).TotalSeconds);
+
+
                     <div class="rounded-3xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition overflow-hidden">
                         <div class="p-5">
                             <div class="flex items-start justify-between gap-3">
@@ -85,8 +97,15 @@
                                         @b.ServiceName
                                     </div>
                                     <div class="mt-1 text-xs text-slate-500">
-                                        Mã: #@b.Id • @b.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                                        Mã: #@b.Id • Đặt lúc: @createdLocal.ToString("dd/MM/yyyy HH:mm")
                                     </div>
+
+                                    @if (b.Status == "Pending")
+                                    {
+                                        <div class="mt-1 text-xs text-slate-500">
+                                            Hạn huỷ: @cancelDeadline.ToString("HH:mm") (trong 10 phút từ lúc đặt)
+                                        </div>
+                                    }
                                 </div>
 
                                 <span class="shrink-0 rounded-full border px-2.5 py-1 text-xs font-semibold @Badge(badgeStatus)">
@@ -113,30 +132,50 @@
                                 }
                             </div>
 
-                            <div class="mt-4 flex gap-2">
+                            <div class="mt-4 flex flex-wrap gap-2">
                                 <a asp-controller="Services" asp-action="Details" asp-route-id="@b.ServiceId"
                                    class="flex-1 inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50">
                                     Xem dịch vụ
                                 </a>
 
+                                @* ✅ Nút HUỶ: chỉ hiện trong 10 phút kể từ lúc đặt *@
+                                @if (canCancel)
+                                {
+                                    <form asp-controller="Booking" asp-action="Cancel" method="post" class="shrink-0">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@b.Id" />
+
+                                        <button type="submit"
+                                                class="inline-flex items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 hover:bg-rose-100"
+                                                data-cancel-btn
+                                                data-remain="@remainSeconds">
+                                            Huỷ
+                                        </button>
+                                    </form>
+                                }
+                                else if (b.Status == "Pending")
+                                {
+                                    <div class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-600">
+                                        Hết hạn huỷ (10’)
+                                    </div>
+                                }
+
                                 @* ✅ Nút Review: chỉ hiện khi "Hoàn tất logic" *@
-               @if (b.IsCompletedLogic && !b.HasReview)
-{
-    <button type="button"
-            class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
-            data-review-btn
-            data-booking-id="@b.Id">
-        ⭐ Đánh giá
-    </button>
-}
-
-else if (b.HasReview)
-{
-    <div class="inline-flex items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700">
-        Đã đánh giá
-    </div>
-}
-
+                                @if (b.IsCompletedLogic && !b.HasReview)
+                                {
+                                    <button type="button"
+                                            class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800"
+                                            data-review-btn
+                                            data-booking-id="@b.Id">
+                                        ⭐ Đánh giá
+                                    </button>
+                                }
+                                else if (b.HasReview)
+                                {
+                                    <div class="inline-flex items-center justify-center rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700">
+                                        Đã đánh giá
+                                    </div>
+                                }
                             </div>
                         </div>
                     </div>
@@ -145,99 +184,119 @@ else if (b.HasReview)
         }
     </div>
 
-  <!-- Review Modal -->
-<div id="reviewModal" class="fixed inset-0 z-50 hidden" aria-hidden="true">
-    <!-- Backdrop -->
-    <div id="reviewBackdrop" class="absolute inset-0 bg-black/50"></div>
+    <!-- Review Modal -->
+    <div id="reviewModal" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+        <!-- Backdrop -->
+        <div id="reviewBackdrop" class="absolute inset-0 bg-black/50"></div>
 
-    <!-- Center wrapper -->
-    <div class="relative mx-auto flex min-h-screen items-center justify-center px-4">
-        <div class="w-full max-w-md">
-            <div class="rounded-3xl bg-white shadow-[0_20px_60px_-15px_rgba(0,0,0,0.25)] border border-slate-200 overflow-hidden">
-                <!-- Header -->
-                <div class="p-6 border-b border-slate-100">
-                    <div class="text-lg font-extrabold text-slate-900">Đánh giá dịch vụ</div>
-                    <div class="mt-1 text-sm text-slate-500">Chấm điểm và để lại nhận xét (tuỳ chọn).</div>
+        <!-- Center wrapper -->
+        <div class="relative mx-auto flex min-h-screen items-center justify-center px-4">
+            <div class="w-full max-w-md">
+                <div class="rounded-3xl bg-white shadow-[0_20px_60px_-15px_rgba(0,0,0,0.25)] border border-slate-200 overflow-hidden">
+                    <!-- Header -->
+                    <div class="p-6 border-b border-slate-100">
+                        <div class="text-lg font-extrabold text-slate-900">Đánh giá dịch vụ</div>
+                        <div class="mt-1 text-sm text-slate-500">Chấm điểm và để lại nhận xét (tuỳ chọn).</div>
+                    </div>
+
+                    <!-- Body -->
+                    <form id="reviewForm"
+                          method="post"
+                          asp-controller="Booking"
+                          asp-action="CreateReview"
+                          class="p-6 space-y-5">
+                        @Html.AntiForgeryToken()
+
+                        <input type="hidden" name="BookingOrderId" id="reviewBookingOrderId" />
+
+                        <!-- Rating -->
+                        <div>
+                            <div class="text-sm font-semibold text-slate-700">Số sao</div>
+
+                            <!-- Stars -->
+                            <div id="starRating" class="mt-2 flex items-center justify-center gap-2">
+                                @for (int i = 1; i <= 5; i++)
+                                {
+                                    <button type="button"
+                                            class="star-btn inline-flex h-11 w-11 items-center justify-center rounded-2xl
+                                                   border border-slate-200 bg-white text-2xl leading-none
+                                                   text-slate-300 transition-all duration-150
+                                                   hover:-translate-y-0.5 hover:shadow-sm
+                                                   focus:outline-none focus:ring-2 focus:ring-amber-400"
+                                            data-value="@i"
+                                            aria-label="@i sao">
+                                        ★
+                                    </button>
+                                }
+                            </div>
+
+                            <!-- Hidden input to submit -->
+                            <input type="hidden" name="Rating" id="ratingValue" value="5" />
+
+                            <div class="mt-2 text-center text-xs text-slate-500">1 = tệ, 5 = rất hài lòng</div>
+                        </div>
+
+                        <!-- Comment -->
+                        <div>
+                            <div class="text-sm font-semibold text-slate-700">Nhận xét</div>
+                            <textarea name="Comment"
+                                      rows="4"
+                                      class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3
+                                             text-sm text-slate-900 outline-none
+                                             focus:ring-2 focus:ring-amber-400"
+                                      placeholder="Viết vài dòng giúp người khác tham khảo..."></textarea>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="flex w-full gap-3 pt-3">
+                            <button type="button" id="reviewCancel"
+                                    class="w-1/2 inline-flex items-center justify-center rounded-2xl
+                                           border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800
+                                           hover:bg-slate-50 transition">
+                                Huỷ
+                            </button>
+
+                            <button type="submit" id="reviewSubmit" class="w-1/2 relative rounded-2xl bg-slate-900 px-4 py-2.5">
+                                <span class="absolute inset-0 flex items-center justify-center"
+                                      style="font-size:14px !important; color:#fff !important;">
+                                    Gửi đánh giá
+                                </span>
+                            </button>
+                        </div>
+                    </form>
+
                 </div>
-
-                <!-- Body -->
-<form id="reviewForm"
-      method="post"
-      asp-controller="Booking"
-      asp-action="CreateReview"
-      class="p-6 space-y-5">
-    @Html.AntiForgeryToken()
-
-    <input type="hidden" name="BookingOrderId" id="reviewBookingOrderId" />
-
-    <!-- Rating -->
-    <div>
-        <div class="text-sm font-semibold text-slate-700">Số sao</div>
-
-        <!-- Stars -->
-        <div id="starRating" class="mt-2 flex items-center justify-center gap-2">
-            @for (int i = 1; i <= 5; i++)
-            {
-                <button type="button"
-                        class="star-btn inline-flex h-11 w-11 items-center justify-center rounded-2xl
-                               border border-slate-200 bg-white text-2xl leading-none
-                               text-slate-300 transition-all duration-150
-                               hover:-translate-y-0.5 hover:shadow-sm
-                               focus:outline-none focus:ring-2 focus:ring-amber-400"
-                        data-value="@i"
-                        aria-label="@i sao">
-                    ★
-                </button>
-            }
-        </div>
-
-        <!-- Hidden input to submit -->
-        <input type="hidden" name="Rating" id="ratingValue" value="5" />
-
-        <div class="mt-2 text-center text-xs text-slate-500">1 = tệ, 5 = rất hài lòng</div>
-    </div>
-
-    <!-- Comment -->
-    <div>
-        <div class="text-sm font-semibold text-slate-700">Nhận xét</div>
-        <textarea name="Comment"
-                  rows="4"
-                  class="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3
-                         text-sm text-slate-900 outline-none
-                         focus:ring-2 focus:ring-amber-400"
-                  placeholder="Viết vài dòng giúp người khác tham khảo..."></textarea>
-    </div>
-
-    <!-- Actions -->
-    <div class="flex w-full gap-3 pt-3">
-        <button type="button" id="reviewCancel"
-                class="w-1/2 inline-flex items-center justify-center rounded-2xl
-                       border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800
-                       hover:bg-slate-50 transition">
-            Huỷ
-        </button>
-
-    <button type="submit" id="reviewSubmit"
-  class="w-1/2 relative rounded-2xl bg-slate-900 px-4 py-2.5">
-  <span class="absolute inset-0 flex items-center justify-center"
-        style="font-size:14px !important; color:#fff !important;">
-    Gửi đánh giá
-  </span>
-</button>
-
-
-
-    </div>
-</form>
-
             </div>
         </div>
     </div>
-</div>
 
 @section Scripts {
 <script>
 (function () {
+  // ===== Cancel confirm (Swal) =====
+  document.addEventListener('submit', function (e) {
+    const btn = e.target.querySelector('[data-cancel-btn]');
+    if (!btn) return;
+
+    e.preventDefault();
+
+    const remain = parseInt(btn.getAttribute('data-remain') || "0", 10);
+    const mins = Math.floor(remain / 60);
+    const secs = remain % 60;
+    const remainText = (remain > 0) ? `${mins}:${secs.toString().padStart(2,'0')}` : "0:00";
+
+    Swal.fire({
+      icon: "warning",
+      title: "Huỷ lịch hẹn?",
+      text: `Bạn chỉ huỷ được trong 10 phút kể từ lúc đặt. (Còn ~${remainText})`,
+      showCancelButton: true,
+      confirmButtonText: "Huỷ lịch",
+      cancelButtonText: "Không"
+    }).then((r) => {
+      if (r.isConfirmed) e.target.submit();
+    });
+  });
+
   // ===== Modal open/close =====
   const modal = document.getElementById('reviewModal');
   const backdrop = document.getElementById('reviewBackdrop');
@@ -248,7 +307,6 @@ else if (b.HasReview)
     bookingIdInput.value = bookingId || "";
     modal.classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
-    // when open, paint stars from current value
     const current = parseInt(document.getElementById('ratingValue').value || "5", 10);
     paintStars(current, true);
   }
@@ -272,14 +330,13 @@ else if (b.HasReview)
     if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
   });
 
-  // ===== Star rating (1..5 all bright up to selected) =====
+  // ===== Star rating =====
   const stars = document.querySelectorAll('#starRating .star-btn');
   const ratingInput = document.getElementById('ratingValue');
 
   let currentRating = parseInt(ratingInput.value || "5", 10);
 
   function setStarClasses(starEl, on, strong) {
-    // reset base
     starEl.classList.remove('text-slate-300', 'text-amber-400', 'text-amber-500');
     starEl.classList.remove('scale-110');
 
@@ -287,8 +344,6 @@ else if (b.HasReview)
       starEl.classList.add('text-slate-300');
       return;
     }
-
-    // ON
     starEl.classList.add(strong ? 'text-amber-500' : 'text-amber-400');
     if (strong) starEl.classList.add('scale-110');
   }
@@ -304,9 +359,8 @@ else if (b.HasReview)
   stars.forEach(star => {
     const value = parseInt(star.dataset.value, 10);
 
-star.addEventListener('mouseenter', () => paintStars(value, true));
-star.addEventListener('mouseleave', () => paintStars(currentRating, true));
-
+    star.addEventListener('mouseenter', () => paintStars(value, true));
+    star.addEventListener('mouseleave', () => paintStars(currentRating, true));
 
     star.addEventListener('click', () => {
       currentRating = value;
@@ -315,7 +369,6 @@ star.addEventListener('mouseleave', () => paintStars(currentRating, true));
     });
   });
 
-  // default paint
   paintStars(currentRating, true);
 })();
 </script>

@@ -31,5 +31,8 @@ public class AdminDashboardVm
         public DateTime CreatedAt { get; set; }
         public string Status { get; set; } = "";
         public int RiskLevel { get; set; }
+
+        // ✅ NEW: danh mục của doanh nghiệp
+        public List<string> Categories { get; set; } = new();
     }
 }

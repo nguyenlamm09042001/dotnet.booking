@@ -25,10 +25,6 @@ public class BusinessStaffController : Controller
     await next();
 }
 
-
-    // =========================
-    // Swal helper (đúng layout của bé)
-    // =========================
     private void SetSwal(string type, string title, string message, string? redirect = null)
     {
         TempData["SwalType"] = type;       // success | error | warning | info | question
@@ -370,9 +366,9 @@ public class BusinessStaffController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        // Nếu sau này bé muốn chặn xóa khi có booking: check BookingOrders.StaffUserId
-        // var hasBooking = await _db.BookingOrders.AnyAsync(b => b.StaffUserId == staffUserId);
-        // if (hasBooking) { ... }
+
+
+
 
         using var tx = await _db.Database.BeginTransactionAsync();
         try

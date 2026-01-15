@@ -74,11 +74,11 @@
                     Quản lý lịch hẹn
                 </a>
 
-                <a asp-controller="Home" asp-action="Index"
-                   class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
-                    Trang người dùng
-                </a>
-
+               <a asp-controller="Notifications"
+                       asp-action="Index"
+                       class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                        🔔 Thông báo
+                    </a>
                 <!-- Logout -->
                 <form asp-controller="Account" asp-action="Logout" method="post" class="inline-block">
                     @Html.AntiForgeryToken()
@@ -221,6 +221,8 @@
                                           focus:outline-none focus:ring-2 focus:ring-indigo-300 sm:w-64"
                                    placeholder="Tìm theo tên / SĐT / dịch vụ..." />
                         </form>
+
+                        
                     </div>
 
                     <div class="h-px bg-slate-200"></div>

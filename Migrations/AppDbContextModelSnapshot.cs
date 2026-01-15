@@ -64,6 +64,9 @@ namespace Booking.Migrations
                     b.Property<TimeOnly>("Time")
                         .HasColumnType("time");
 
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
@@ -74,6 +77,93 @@ namespace Booking.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("BookingOrders");
+                });
+
+            modelBuilder.Entity("booking.Models.BusinessCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("BusinessCategories");
+                });
+
+            modelBuilder.Entity("booking.Models.BusinessCategoryLink", b =>
+                {
+                    b.Property<int>("BusinessUserId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("BusinessUserId", "CategoryId");
+
+                    b.HasIndex("CategoryId");
+
+                    b.ToTable("BusinessCategoryLinks");
+                });
+
+            modelBuilder.Entity("booking.Models.Notification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LinkUrl")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Notifications");
                 });
 
             modelBuilder.Entity("booking.Models.Service", b =>
@@ -120,12 +210,54 @@ namespace Booking.Migrations
                     b.Property<int>("ReviewCount")
                         .HasColumnType("int");
 
+                    b.Property<int?>("ServiceCategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Thumbnail")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<int>("UserId")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ServiceCategoryId");
+
+                    b.HasIndex("UserId");
+
                     b.ToTable("Services");
+                });
+
+            modelBuilder.Entity("booking.Models.ServiceCategory", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("ServiceCategories");
                 });
 
             modelBuilder.Entity("booking.Models.ServiceReview", b =>
@@ -210,6 +342,21 @@ namespace Booking.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("Avatar")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("BusinessApprovedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("BusinessApprovedBy")
+                        .HasColumnType("int");
+
+                    b.Property<int>("BusinessRiskLevel")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("BusinessVerifiedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -227,6 +374,10 @@ namespace Booking.Migrations
                         .HasColumnType("nvarchar(255)");
 
                     b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
@@ -252,6 +403,43 @@ namespace Booking.Migrations
                     b.Navigation("Service");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("booking.Models.BusinessCategoryLink", b =>
+                {
+                    b.HasOne("booking.Models.User", "BusinessUser")
+                        .WithMany()
+                        .HasForeignKey("BusinessUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("booking.Models.BusinessCategory", "Category")
+                        .WithMany("BusinessLinks")
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("BusinessUser");
+
+                    b.Navigation("Category");
+                });
+
+            modelBuilder.Entity("booking.Models.Service", b =>
+                {
+                    b.HasOne("booking.Models.ServiceCategory", "ServiceCategory")
+                        .WithMany("Services")
+                        .HasForeignKey("ServiceCategoryId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("booking.Models.User", "BusinessUser")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BusinessUser");
+
+                    b.Navigation("ServiceCategory");
                 });
 
             modelBuilder.Entity("booking.Models.ServiceReview", b =>
@@ -290,6 +478,16 @@ namespace Booking.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("booking.Models.BusinessCategory", b =>
+                {
+                    b.Navigation("BusinessLinks");
+                });
+
+            modelBuilder.Entity("booking.Models.ServiceCategory", b =>
+                {
+                    b.Navigation("Services");
                 });
 #pragma warning restore 612, 618
         }

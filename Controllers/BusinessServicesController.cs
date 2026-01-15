@@ -1,11 +1,11 @@
 using booking.Data;
 using booking.Models;
+using booking.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-using booking.Infrastructure;
-using Microsoft.AspNetCore.Mvc.Filters; 
 
 namespace booking.Controllers;
 
@@ -26,6 +26,7 @@ public class BusinessServicesController : Controller
 
         await next();
     }
+
     private int? CurrentUserId()
     {
         var s = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -41,6 +42,25 @@ public class BusinessServicesController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    private async Task LoadServiceCategoriesAsync(int? selectedId = null)
+{
+    var items = await _db.ServiceCategories
+        .AsNoTracking()
+        .Where(x => x.IsActive)
+        .OrderBy(x => x.Name)
+        .Select(x => new { x.Id, x.Name })
+        .ToListAsync();
+
+    ViewBag.ServiceCategoryOptions =
+        new Microsoft.AspNetCore.Mvc.Rendering.SelectList(
+            items, "Id", "Name", selectedId
+        );
+}
+
+
+    // =========================
+    // INDEX
+    // =========================
     // GET: /BusinessServices/Index?q=&cat=&active=&sort=&page=
     [HttpGet]
     public async Task<IActionResult> Index(string? q, string? cat, string? active, string? sort, int page = 1)
@@ -50,13 +70,11 @@ public class BusinessServicesController : Controller
         var businessUserId = CurrentUserId();
         if (!businessUserId.HasValue) return Forbid();
 
-        // ✅ SCOPE NGAY TỪ ĐẦU
         var query = _db.Services
             .AsNoTracking()
             .Where(x => x.UserId == businessUserId.Value)
             .AsQueryable();
 
-        // search
         if (!string.IsNullOrWhiteSpace(q))
         {
             q = q.Trim();
@@ -66,18 +84,15 @@ public class BusinessServicesController : Controller
                 x.Location.Contains(q));
         }
 
-        // filter category (case-insensitive)
         if (!string.IsNullOrWhiteSpace(cat))
         {
             cat = cat.Trim();
             query = query.Where(x => x.Category.ToLower() == cat.ToLower());
         }
 
-        // filter active
         if (active == "1") query = query.Where(x => x.IsActive);
         if (active == "0") query = query.Where(x => !x.IsActive);
 
-        // sort
         query = sort switch
         {
             "newest"     => query.OrderByDescending(x => x.CreatedAt),
@@ -86,7 +101,6 @@ public class BusinessServicesController : Controller
             _            => query.OrderByDescending(x => x.CreatedAt),
         };
 
-        // pagination
         var total = await query.CountAsync();
         var totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)pageSize));
         page = Math.Clamp(page, 1, totalPages);
@@ -103,38 +117,113 @@ public class BusinessServicesController : Controller
         return View(V_INDEX, items);
     }
 
-
-
+    // =========================
+    // CREATE
+    // =========================
     // GET: /BusinessServices/Create
-    [HttpGet]
+   [HttpGet]
+public async Task<IActionResult> Create()
+{
+    await LoadServiceCategoriesAsync();
+    var m = new Service { IsActive = true };
+    return View(V_CREATE, m);
+}
 
-    public IActionResult Create()
+
+  [HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> Create(Service input, IFormFile? thumbFile)
+{
+    var businessUserId = CurrentUserId();
+    if (!businessUserId.HasValue) return Forbid();
+
+    input.UserId = businessUserId.Value;
+    input.CreatedAt = DateTime.Now;
+
+    if (string.IsNullOrWhiteSpace(input.Location))
+        input.Location = "—";
+
+    input.Name = (input.Name ?? "").Trim();
+    input.Description = (input.Description ?? "").Trim();
+    input.Location = (input.Location ?? "").Trim();
+
+    // ✅ VALIDATE: phải chọn danh mục
+    if (!input.ServiceCategoryId.HasValue)
     {
-
-        
-        var m = new Service
-        {
-            IsActive = true
-        };
-        return View(V_CREATE, m);
+        ModelState.AddModelError(
+            nameof(input.ServiceCategoryId),
+            "Vui lòng chọn danh mục dịch vụ."
+        );
     }
 
-    // POST: /BusinessServices/Create
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(Service input)
+    // ❌ KHÔNG dùng Category text nữa
+    // input.Category = ...
+
+    // ❌ KHÔNG load dropdown ở đầu
+    // await LoadServiceCategoriesAsync();
+
+    if (!ModelState.IsValid)
     {
-        var businessUserId = CurrentUserId();
-        if (!businessUserId.HasValue) return Forbid();
+        // ✅ CHỈ load dropdown khi trả View
+        await LoadServiceCategoriesAsync(input.ServiceCategoryId);
 
-        if (!ModelState.IsValid) return View(V_CREATE, input);
+        TempData["SwalType"] = "error";
+        TempData["SwalTitle"] = "Chưa hợp lệ";
+        TempData["SwalMessage"] = "Vui lòng kiểm tra lại các trường bắt buộc.";
+        return View(V_CREATE, input);
+    }
 
-        // ✅ ÉP OWNER
-        input.UserId = businessUserId.Value;
+    // =========================
+    // UPLOAD THUMBNAIL (GIỮ NGUYÊN LOGIC CŨ)
+    // =========================
+    if (thumbFile != null && thumbFile.Length > 0)
+    {
+        const long maxBytes = 3 * 1024 * 1024;
+        if (thumbFile.Length > maxBytes)
+        {
+            await LoadServiceCategoriesAsync(input.ServiceCategoryId);
 
-        input.CreatedAt = DateTime.Now;
-        if (string.IsNullOrWhiteSpace(input.Location)) input.Location = "—";
+            TempData["SwalType"] = "error";
+            TempData["SwalTitle"] = "Ảnh quá lớn";
+            TempData["SwalMessage"] = "Ảnh tối đa 3MB.";
+            return View(V_CREATE, input);
+        }
 
+        var allowedExt = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+        var ext = Path.GetExtension(thumbFile.FileName).ToLowerInvariant();
+        if (!allowedExt.Contains(ext))
+        {
+            await LoadServiceCategoriesAsync(input.ServiceCategoryId);
+
+            TempData["SwalType"] = "error";
+            TempData["SwalTitle"] = "Sai định dạng";
+            TempData["SwalMessage"] = "Chỉ chấp nhận JPG, JPEG, PNG, WEBP.";
+            return View(V_CREATE, input);
+        }
+
+        var uploadsDir = Path.Combine(
+            Directory.GetCurrentDirectory(),
+            "wwwroot",
+            "uploads",
+            "services"
+        );
+
+        if (!Directory.Exists(uploadsDir))
+            Directory.CreateDirectory(uploadsDir);
+
+        var fileName = $"svc_{businessUserId.Value}_{DateTime.Now:yyyyMMddHHmmssfff}{ext}";
+        var filePath = Path.Combine(uploadsDir, fileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await thumbFile.CopyToAsync(stream);
+        }
+
+        input.Thumbnail = $"/uploads/services/{fileName}";
+    }
+
+    try
+    {
         _db.Services.Add(input);
         await _db.SaveChangesAsync();
 
@@ -144,7 +233,21 @@ public class BusinessServicesController : Controller
 
         return RedirectToAction(nameof(Index));
     }
+    catch (DbUpdateException)
+    {
+        await LoadServiceCategoriesAsync(input.ServiceCategoryId);
 
+        TempData["SwalType"] = "error";
+        TempData["SwalTitle"] = "Lỗi lưu dữ liệu";
+        TempData["SwalMessage"] = "Không thể lưu dịch vụ. Vui lòng thử lại.";
+        return View(V_CREATE, input);
+    }
+}
+
+
+    // =========================
+    // EDIT
+    // =========================
     // GET: /BusinessServices/Edit/5
     [HttpGet]
     public async Task<IActionResult> Edit(int id)
@@ -152,7 +255,6 @@ public class BusinessServicesController : Controller
         var businessUserId = CurrentUserId();
         if (!businessUserId.HasValue) return Forbid();
 
-        // ✅ CHỈ LẤY SERVICE CỦA DOANH NGHIỆP
         var s = await _db.Services.FirstOrDefaultAsync(x => x.Id == id && x.UserId == businessUserId.Value);
         if (s == null) return NotFound();
 
@@ -162,24 +264,74 @@ public class BusinessServicesController : Controller
     // POST: /BusinessServices/Edit
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(Service input)
+    public async Task<IActionResult> Edit(Service input, IFormFile? thumbFile)
     {
         var businessUserId = CurrentUserId();
         if (!businessUserId.HasValue) return Forbid();
 
         if (!ModelState.IsValid) return View(V_EDIT, input);
 
-        // ✅ CHỈ UPDATE SERVICE CỦA DOANH NGHIỆP
         var s = await _db.Services.FirstOrDefaultAsync(x => x.Id == input.Id && x.UserId == businessUserId.Value);
         if (s == null) return NotFound();
 
-        s.Name = input.Name;
-        s.Category = input.Category;
-        s.Description = input.Description;
+        s.Name = (input.Name ?? "").Trim();
+        s.Category = (input.Category ?? "").Trim();
+        s.Description = (input.Description ?? "").Trim();
         s.Price = input.Price;
         s.DurationMinutes = input.DurationMinutes;
-        s.Location = input.Location;
+        s.Location = (input.Location ?? "").Trim();
         s.IsActive = input.IsActive;
+
+        // ✅ Upload thumbnail mới (nếu có)
+        if (thumbFile != null && thumbFile.Length > 0)
+        {
+            const long maxBytes = 3 * 1024 * 1024;
+            if (thumbFile.Length > maxBytes)
+            {
+                TempData["SwalType"] = "error";
+                TempData["SwalTitle"] = "Ảnh quá lớn";
+                TempData["SwalMessage"] = "Ảnh tối đa 3MB.";
+                input.Thumbnail = s.Thumbnail;
+                return View(V_EDIT, input);
+            }
+
+            var allowedExt = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+            var ext = Path.GetExtension(thumbFile.FileName).ToLowerInvariant();
+            if (!allowedExt.Contains(ext))
+            {
+                TempData["SwalType"] = "error";
+                TempData["SwalTitle"] = "Sai định dạng";
+                TempData["SwalMessage"] = "Chỉ chấp nhận JPG, JPEG, PNG, WEBP.";
+                input.Thumbnail = s.Thumbnail;
+                return View(V_EDIT, input);
+            }
+
+            var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "services");
+            if (!Directory.Exists(uploadsDir)) Directory.CreateDirectory(uploadsDir);
+
+            var fileName = $"svc_{businessUserId.Value}_{DateTime.Now:yyyyMMddHHmmssfff}{ext}";
+            var filePath = Path.Combine(uploadsDir, fileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await thumbFile.CopyToAsync(stream);
+            }
+
+            // xoá ảnh cũ (nếu có)
+            if (!string.IsNullOrWhiteSpace(s.Thumbnail))
+            {
+                var oldPath = Path.Combine(
+                    Directory.GetCurrentDirectory(),
+                    "wwwroot",
+                    s.Thumbnail.TrimStart('/').Replace("/", Path.DirectorySeparatorChar.ToString())
+                );
+
+                if (System.IO.File.Exists(oldPath))
+                    System.IO.File.Delete(oldPath);
+            }
+
+            s.Thumbnail = $"/uploads/services/{fileName}";
+        }
 
         await _db.SaveChangesAsync();
 
@@ -190,6 +342,9 @@ public class BusinessServicesController : Controller
         return RedirectToAction(nameof(Index));
     }
 
+    // =========================
+    // TOGGLE
+    // =========================
     // POST: /BusinessServices/Toggle
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -198,7 +353,6 @@ public class BusinessServicesController : Controller
         var businessUserId = CurrentUserId();
         if (!businessUserId.HasValue) return Forbid();
 
-        // ✅ CHỈ TOGGLE SERVICE CỦA DOANH NGHIỆP
         var s = await _db.Services.FirstOrDefaultAsync(x => x.Id == id && x.UserId == businessUserId.Value);
         if (s == null) return NotFound();
 
@@ -212,6 +366,9 @@ public class BusinessServicesController : Controller
         return RedirectSafe(returnUrl);
     }
 
+    // =========================
+    // DELETE
+    // =========================
     // POST: /BusinessServices/Delete
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -220,9 +377,21 @@ public class BusinessServicesController : Controller
         var businessUserId = CurrentUserId();
         if (!businessUserId.HasValue) return Forbid();
 
-        // ✅ CHỈ XOÁ SERVICE CỦA DOANH NGHIỆP
         var s = await _db.Services.FirstOrDefaultAsync(x => x.Id == id && x.UserId == businessUserId.Value);
         if (s == null) return NotFound();
+
+        // xoá file ảnh (nếu có) trước khi xoá record
+        if (!string.IsNullOrWhiteSpace(s.Thumbnail))
+        {
+            var oldPath = Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "wwwroot",
+                s.Thumbnail.TrimStart('/').Replace("/", Path.DirectorySeparatorChar.ToString())
+            );
+
+            if (System.IO.File.Exists(oldPath))
+                System.IO.File.Delete(oldPath);
+        }
 
         _db.Services.Remove(s);
         await _db.SaveChangesAsync();

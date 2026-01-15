@@ -118,7 +118,7 @@
                 });
             };
 
-            // Swal loading (nếu bé muốn dùng Swal thay overlay)
+
             window.showSwalLoading = function (title, message) {
                 if (!window.Swal) return;
                 return Swal.fire({
@@ -168,7 +168,7 @@
                 show();
             }, true);
 
-            // Expose nếu sau này bé submit bằng fetch/AJAX
+
             window.__showLoading = show;
             window.__hideLoading = hide;
         })();

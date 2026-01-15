@@ -1,6 +1,7 @@
 using booking.Data;
 using booking.Models;
 using booking.ViewModels;
+using booking.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -12,10 +13,12 @@ namespace booking.Controllers;
 public class BookingController : Controller
 {
     private readonly AppDbContext _db;
+    private readonly NotificationService _noti;
 
-    public BookingController(AppDbContext db)
+    public BookingController(AppDbContext db, NotificationService noti)
     {
         _db = db;
+        _noti = noti;
     }
 
     // =========================
@@ -35,7 +38,7 @@ public class BookingController : Controller
     private static string NormStatus(string? s) => (s ?? "").Trim().ToLower();
 
     // =========================
-    // Swal helper (đúng theo _Layout.cshtml của bé)
+
     // =========================
     private void SetSwal(string type, string title, string message, string? redirect = null)
     {
@@ -53,6 +56,43 @@ public class BookingController : Controller
     private const string SLOT_START = "09:00";
     private const string SLOT_END = "20:00";
     private const int SLOT_STEP_MINUTES = 30;
+
+    // =========================
+// GET /Booking/AvailableSlots?serviceId=2&date=2026-01-15
+// Trả JSON slot theo ngày (dùng luồng B: còn staff rảnh)
+// =========================
+[HttpGet]
+public async Task<IActionResult> AvailableSlots(int serviceId, string date)
+{
+    if (serviceId <= 0) return BadRequest(new { message = "serviceId invalid" });
+
+    if (!DateOnly.TryParse(date, out var d))
+        return BadRequest(new { message = "date invalid (yyyy-MM-dd)" });
+
+    // service tồn tại + đang active?
+    var s = await _db.Services.AsNoTracking().FirstOrDefaultAsync(x => x.Id == serviceId);
+    if (s == null) return NotFound(new { message = "service not found" });
+
+    if (!s.IsActive)
+    {
+        // tuỳ ý: trả toàn booked hoặc trả rỗng
+        return Ok(new List<object>());
+    }
+
+    var slots = await BuildSlotsAsync(serviceId, d, SLOT_START, SLOT_END, SLOT_STEP_MINUTES);
+
+    // fallback giống luồng Create GET của bé
+    if (slots.Count == 0)
+    {
+        var options = BuildTimeOptions(SLOT_START, SLOT_END, SLOT_STEP_MINUTES);
+        slots = options.Select(t => new TimeSlotVm { Value = t, IsBooked = false }).ToList();
+    }
+
+    // JSON shape: { value, isBooked }
+    var payload = slots.Select(x => new { value = x.Value, isBooked = x.IsBooked }).ToList();
+    return Ok(payload);
+}
+
 
     // =========================
     // GET /Booking/Create?serviceId=2
@@ -151,6 +191,34 @@ public class BookingController : Controller
             return View(VIEW_BOOKING_CREATE, vm);
         }
 
+        // =========================
+// CHẶN NGÀY QUÁ KHỨ / GIỜ ĐÃ QUA (server-side)
+// =========================
+var today = DateOnly.FromDateTime(DateTime.Today);
+
+// 1) ngày trong quá khứ
+if (vm.Date < today)
+{
+    SetSwal("warning", "Không hợp lệ", "Bạn không thể chọn ngày trong quá khứ. Vui lòng chọn ngày khác.");
+    ModelState.AddModelError(nameof(vm.Date), "Ngày đã qua.");
+    return View(VIEW_BOOKING_CREATE, vm);
+}
+
+// 2) nếu chọn hôm nay thì giờ phải >= hiện tại (18:23 => 18:00 bị khóa, 18:30 ok)
+if (vm.Date == today)
+{
+    var now = TimeOnly.FromDateTime(DateTime.Now);
+
+    // Rule: slot bắt đầu trước "now" là không hợp lệ
+    if (t < now)
+    {
+        SetSwal("warning", "Không hợp lệ", "Giờ bạn chọn đã qua. Vui lòng chọn giờ khác.");
+        ModelState.AddModelError(nameof(vm.Time), "Giờ đã qua.");
+        return View(VIEW_BOOKING_CREATE, vm);
+    }
+}
+
+
         var pickedSlot = vm.TimeSlots.FirstOrDefault(x => x.Value == vm.Time);
         if (pickedSlot == null)
         {
@@ -178,7 +246,6 @@ public class BookingController : Controller
         var businessUserId = s.UserId;
         var dur = (s.DurationMinutes > 0) ? s.DurationMinutes : SLOT_STEP_MINUTES;
 
-
         var staffId = await PickStaffAsync(businessUserId, vm.ServiceId, vm.Date, t, dur);
 
         // Nếu ngay lúc bấm đặt mà không còn staff rảnh => báo user chọn giờ khác
@@ -203,12 +270,40 @@ public class BookingController : Controller
             Date = vm.Date,
             Time = t,
             Note = string.IsNullOrWhiteSpace(vm.Note) ? null : vm.Note.Trim(),
-            Status = ST_PENDING,            // giữ pending để staff tự confirm (bé muốn auto-confirm thì đổi ST_CONFIRMED)
+            Status = ST_PENDING,            // staff tự confirm
             CreatedAt = DateTime.UtcNow
         };
 
         _db.BookingOrders.Add(booking);
         await _db.SaveChangesAsync();
+
+        // =========================
+        // NOTIFICATION: booking mới
+        // =========================
+        try
+        {
+            // notify business (owner của service)
+            await _noti.CreateAsync(
+                userId: businessUserId,
+                title: "Có lịch hẹn mới",
+                message: $"#{booking.Id} • {booking.CustomerName} • {booking.Date:dd/MM/yyyy} {booking.Time:HH\\:mm}",
+                type: "booking_new",
+    linkUrl: $"/BusinessBookings/Details/{booking.Id}"
+            );
+
+            // (tuỳ chọn) notify staff được auto-assign
+            await _noti.CreateAsync(
+                userId: booking.StaffUserId!.Value,
+                title: "Bạn có lịch mới",
+                message: $"#{booking.Id} • {booking.CustomerName} • {booking.Date:dd/MM/yyyy} {booking.Time:HH\\:mm}",
+                type: "booking_assigned",
+                linkUrl: $"/Staff/BookingDetail?id={booking.Id}"
+            );
+        }
+        catch
+        {
+            // không chặn luồng đặt lịch nếu noti lỗi
+        }
 
         SetSwal("success", "Thành công", $"Đặt lịch thành công! Mã #{booking.Id}");
         return RedirectToAction(nameof(Index));
@@ -358,6 +453,97 @@ public class BookingController : Controller
     }
 
     // =========================
+    // POST: /Booking/Cancel  (User huỷ trong 10 phút)
+    // =========================
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Cancel(int id)
+    {
+        // ===== get current user id =====
+        var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!int.TryParse(userIdStr, out var userId) || userId <= 0)
+        {
+            SetSwal("error", "Không hợp lệ", "Bạn chưa đăng nhập hợp lệ.");
+            return RedirectToAction(nameof(Index));
+        }
+
+        // ===== find booking (đúng owner) =====
+        var booking = await _db.BookingOrders
+            .Include(x => x.Service)
+            .FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
+
+        if (booking == null)
+        {
+            SetSwal("error", "Không tìm thấy", "Booking không tồn tại hoặc bạn không có quyền.");
+            return RedirectToAction(nameof(Index));
+        }
+
+        // chỉ cho huỷ khi pending
+        var stLower = NormStatus(booking.Status);
+        if (stLower != ST_PENDING)
+        {
+            SetSwal("warning", "Không thể huỷ", "Chỉ có thể huỷ khi booking đang ở trạng thái 'Chờ xác nhận'.");
+            return RedirectToAction(nameof(Index));
+        }
+
+        // ===== 10 minutes rule (CreatedAt lưu UTC) =====
+        var createdUtc = booking.CreatedAt.Kind == DateTimeKind.Unspecified
+            ? DateTime.SpecifyKind(booking.CreatedAt, DateTimeKind.Utc)
+            : booking.CreatedAt.ToUniversalTime();
+
+        if (DateTime.UtcNow > createdUtc.AddMinutes(10))
+        {
+            SetSwal("warning", "Hết hạn huỷ", "Booking chỉ được huỷ trong vòng 10 phút kể từ lúc đặt.");
+            return RedirectToAction(nameof(Index));
+        }
+
+        // ===== update =====
+        booking.Status = ST_CANCELED;
+        await _db.SaveChangesAsync();
+
+        // =========================
+        // NOTIFICATION: khách huỷ lịch
+        // =========================
+        try
+        {
+            var businessUserId = booking.Service?.UserId
+                ?? await _db.Services.AsNoTracking()
+                    .Where(s => s.Id == booking.ServiceId)
+                    .Select(s => s.UserId)
+                    .FirstOrDefaultAsync();
+
+            if (businessUserId > 0)
+            {
+                await _noti.CreateAsync(
+                    userId: businessUserId,
+                    title: "Khách đã huỷ lịch",
+                    message: $"#{booking.Id} • {booking.CustomerName} • {booking.Date:dd/MM/yyyy} {booking.Time:HH\\:mm}",
+                    type: "booking_canceled",
+    linkUrl: $"/BusinessBookings/Details/{booking.Id}"
+                );
+            }
+
+            if (booking.StaffUserId.HasValue)
+            {
+                await _noti.CreateAsync(
+                    userId: booking.StaffUserId.Value,
+                    title: "Lịch đã bị huỷ",
+                    message: $"#{booking.Id} • {booking.CustomerName} • {booking.Date:dd/MM/yyyy} {booking.Time:HH\\:mm}",
+                    type: "booking_canceled",
+    linkUrl: $"/Staff/BookingDetail?id={booking.Id}"
+                );
+            }
+        }
+        catch
+        {
+            // không chặn cancel nếu noti lỗi
+        }
+
+        SetSwal("success", "Đã huỷ", "Booking của bạn đã được huỷ thành công.");
+        return RedirectToAction(nameof(Index));
+    }
+
+    // =========================
     // Helpers (slot builder) - LUỒNG B
     // =========================
     private async Task<List<TimeSlotVm>> BuildSlotsAsync(
@@ -453,7 +639,6 @@ public class BookingController : Controller
                   && !new[] { "canceled", "cancelled" }.Contains((b.Status ?? "").Trim().ToLower())
             let bStart = (b.Time.Hour * 60 + b.Time.Minute)
             let bEnd = (b.Time.Hour * 60 + b.Time.Minute) + (s.DurationMinutes > 0 ? s.DurationMinutes : 0)
-
             where bStart < reqEndMin && bEnd > reqStartMin
             select b.StaffUserId!.Value
         ).Distinct().ToListAsync();
@@ -496,7 +681,6 @@ public class BookingController : Controller
                       && !new[] { "canceled", "cancelled" }.Contains((b.Status ?? "").Trim().ToLower())
                 let bStart = (b.Time.Hour * 60 + b.Time.Minute)
                 let bEnd = (b.Time.Hour * 60 + b.Time.Minute) + (s.DurationMinutes > 0 ? s.DurationMinutes : 0)
-
                 where bStart < reqEnd && bEnd > reqStart
                 select b.Id
             ).AnyAsync();

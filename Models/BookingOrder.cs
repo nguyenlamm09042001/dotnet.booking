@@ -24,6 +24,7 @@ public class BookingOrder
     [Required]
     public DateOnly Date { get; set; }
 
+
     [Required]
     public TimeOnly Time { get; set; }
 
@@ -37,6 +38,7 @@ public class BookingOrder
 
     public int? StaffUserId { get; set; }
 
+public DateTime? UpdatedAt { get; set; }
 
 
 }

@@ -18,86 +18,122 @@ public class AdminController : Controller
 
     // GET: /Admin hoặc /Admin/Index
     [HttpGet]
-// GET: /Admin hoặc /Admin/Index
-[HttpGet]
-public async Task<IActionResult> Index(string? q, int page = 1)
-{
-    // ✅ Nếu gõ search ở dashboard -> chuyển qua trang Users để hiển thị kết quả
-    if (!string.IsNullOrWhiteSpace(q))
-        return RedirectToAction("Index", "AdminUsers", new { q = q.Trim() });
-
-    var now = DateTime.Now;
-    var from7d = now.AddDays(-7);
-
-    // ===== KPI Users =====
-    var totalUsers = await _db.Users.AsNoTracking().CountAsync();
-    var newUsers7d = await _db.Users.AsNoTracking().CountAsync(u => u.CreatedAt >= from7d);
-
-    // ===== KPI Businesses (role=business) =====
-    var totalBusinesses = await _db.Users.AsNoTracking().CountAsync(u => u.Role == "business");
-
-    // Nếu bé chưa có BusinessStatus thì để pendingBusinesses=0 / activeBusinesses=totalBusinesses
-    // Còn nếu có cột BusinessStatus thì dùng 2 dòng dưới (mở comment)
-    // var pendingBusinesses = await _db.Users.AsNoTracking().CountAsync(u => u.Role == "business" && (u.BusinessStatus ?? "pending") == "pending");
-    // var activeBusinesses  = await _db.Users.AsNoTracking().CountAsync(u => u.Role == "business" && (u.BusinessStatus ?? "pending") == "active");
-
-    var pendingBusinesses = 0;
-    var activeBusinesses = totalBusinesses;
-
-    // ✅ systemAlerts (bé đang dùng BookingOrders)
-    var pendingTooLong = now.AddHours(-24);
-    var systemAlerts = await _db.BookingOrders.AsNoTracking()
-        .CountAsync(b => b.Status == "pending" && b.CreatedAt <= pendingTooLong);
-
-    // ✅ recentUsers
-    var recentUsers = await _db.Users.AsNoTracking()
-        .Where(u => u.Role != "admin")
-        .OrderByDescending(u => u.CreatedAt)
-        .Select(u => new AdminDashboardVm.UserRow
-        {
-            Id = u.Id,
-            FullName = u.FullName ?? "",
-            Email = u.Email ?? "",
-            Role = u.Role ?? "",
-            CreatedAt = u.CreatedAt
-        })
-        .Take(5)
-        .ToListAsync();
-
-    var vm = new AdminDashboardVm
+    public async Task<IActionResult> Index(string? q)
     {
-        TotalUsers = totalUsers,
-        NewUsers7d = newUsers7d,
-        TotalBusinesses = totalBusinesses,
-        PendingBusinesses = pendingBusinesses,
-        ActiveBusinesses = activeBusinesses,
-        SystemAlerts = systemAlerts,     // ✅ hết lỗi
-        RecentUsers = recentUsers        // ✅ hết lỗi
-    };
+        if (!string.IsNullOrWhiteSpace(q))
+            return RedirectToAction("Index", "AdminUsers", new { q = q.Trim() });
 
-    // ✅ đúng path view của bé:
-    return View("~/Views/Admin/Home/Index.cshtml", vm);
-}
+        var now = DateTime.UtcNow;
+        var from7d = now.AddDays(-7);
 
+        // ===== KPI Users =====
+        var totalUsers = await _db.Users.AsNoTracking().CountAsync(u => u.Role != "admin");
+        var newUsers7d = await _db.Users.AsNoTracking().CountAsync(u => u.Role != "admin" && u.CreatedAt >= from7d);
 
+        // ===== KPI Businesses =====
+        var totalBusinesses = await _db.Users.AsNoTracking().CountAsync(u => u.Role == "business");
+        var pendingBusinesses = await _db.Users.AsNoTracking()
+            .CountAsync(u => u.Role == "business" && (u.Status ?? "pending") == "pending");
+        var activeBusinesses = await _db.Users.AsNoTracking()
+            .CountAsync(u => u.Role == "business" && (u.Status ?? "pending") == "active");
+
+        // ===== Alerts (ví dụ pending booking quá 24h) =====
+        var pendingTooLong = now.AddHours(-24);
+        var systemAlerts = await _db.BookingOrders.AsNoTracking()
+            .CountAsync(b => b.Status == "pending" && b.CreatedAt <= pendingTooLong);
+
+        // ===== Recent users preview =====
+        var recentUsers = await _db.Users.AsNoTracking()
+            .Where(u => u.Role != "admin")
+            .OrderByDescending(u => u.CreatedAt)
+            .Select(u => new AdminDashboardVm.UserRow
+            {
+                Id = u.Id,
+                FullName = u.FullName ?? "",
+                Email = u.Email ?? "",
+                Role = u.Role ?? "",
+                CreatedAt = u.CreatedAt
+            })
+            .Take(5)
+            .ToListAsync();
+
+        // ✅ ===== Pending businesses preview TOP 10 =====
+        var pendingBizPreview = await _db.Users.AsNoTracking()
+            .Where(u => u.Role == "business" && (u.Status ?? "pending") == "pending")
+            .OrderByDescending(u => u.CreatedAt)
+            .Select(u => new AdminDashboardVm.BusinessRow
+            {
+                Id = u.Id,
+                BusinessName = u.FullName ?? "(Chưa đặt tên)",
+                OwnerEmail = u.Email ?? "",
+                CreatedAt = u.CreatedAt,
+                Status = u.Status ?? "pending",
+                RiskLevel = u.BusinessRiskLevel,
+                Categories = new List<string>() // sẽ fill dưới
+            })
+            .Take(10)
+            .ToListAsync();
+
+        var pendingIds = pendingBizPreview.Select(x => x.Id).ToList();
+
+        if (pendingIds.Count > 0)
+        {
+            var catPairs = await (
+                from l in _db.BusinessCategoryLinks.AsNoTracking()
+                join c in _db.BusinessCategories.AsNoTracking()
+                    on l.CategoryId equals c.Id
+                where pendingIds.Contains(l.BusinessUserId)
+                select new
+                {
+                    l.BusinessUserId,
+                    CatName = c.Name
+                }
+            ).ToListAsync();
+
+            var catMap = catPairs
+                .GroupBy(x => x.BusinessUserId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(x => x.CatName).Distinct().ToList()
+                );
+
+            foreach (var b in pendingBizPreview)
+            {
+                b.Categories = catMap.TryGetValue(b.Id, out var cats)
+                    ? cats
+                    : new List<string>();
+            }
+        }
+
+        var vm = new AdminDashboardVm
+        {
+            TotalUsers = totalUsers,
+            NewUsers7d = newUsers7d,
+            TotalBusinesses = totalBusinesses,
+            PendingBusinesses = pendingBusinesses,
+            ActiveBusinesses = activeBusinesses,
+            SystemAlerts = systemAlerts,
+            RecentUsers = recentUsers,
+            PendingBusinessesPreview = pendingBizPreview
+        };
+
+        return View("~/Views/Admin/Home/Index.cshtml", vm);
+    }
 
     // ========= MENU ROUTES (để khỏi 404) =========
     [HttpGet]
     public IActionResult Users()
     {
-        // TODO: làm trang quản lý người dùng sau
         return View();
     }
 
     [HttpGet]
     public IActionResult Businesses()
     {
-        // TODO: làm trang quản lý doanh nghiệp sau (khi có bảng Businesses)
         return View();
     }
 
     // ========= DELETE USER (an toàn) =========
-    // UI bên cshtml đang post về action này.
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> DeleteUser(int id)
@@ -105,7 +141,6 @@ public async Task<IActionResult> Index(string? q, int page = 1)
         var u = await _db.Users.FirstOrDefaultAsync(x => x.Id == id);
         if (u == null) return RedirectToAction(nameof(Index));
 
-        // không cho xóa admin (đỡ tự bắn vào chân)
         if ((u.Role ?? "").ToLower() == "admin")
         {
             TempData["SwalType"] = "warning";

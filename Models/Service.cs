@@ -8,6 +8,8 @@ public class Service
     public string Category { get; set; } = "";
     public string Description { get; set; } = "";
     
+    public User? BusinessUser { get; set; }
+
     public int UserId { get; set; }
 
     // Giá theo VND (để format đẹp)
@@ -26,5 +28,9 @@ public class Service
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    
+    public string? Thumbnail { get; set; }
+
+    public int? ServiceCategoryId { get; set; }
+    public ServiceCategory? ServiceCategory { get; set; }
+
 }

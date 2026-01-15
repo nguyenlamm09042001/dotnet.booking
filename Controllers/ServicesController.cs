@@ -68,44 +68,58 @@ public class ServicesController : Controller
         return View(services);
     }
 
-    // /Services/Details/2
     [HttpGet]
-    public async Task<IActionResult> Details(int id)
-    {
-        var service = await _db.Services
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.Id == id);
+public async Task<IActionResult> Details(int id)
+{
+    var service = await _db.Services
+        .AsNoTracking()
+        .FirstOrDefaultAsync(x => x.Id == id);
 
-        if (service == null) return NotFound();
+    if (service == null) return NotFound();
 
-        // ✅ JOIN Users để lấy FullName
-        var reviews = await (
-            from r in _db.ServiceReviews.AsNoTracking()
-            join u in _db.Users.AsNoTracking() on r.UserId equals u.Id into uu
-            from u in uu.DefaultIfEmpty()
-            where r.ServiceId == id
-            orderby r.CreatedAt descending
-            select new ReviewItemVm
-            {
-                UserId = r.UserId,
-                FullName = u != null ? u.FullName : null,
-                Rating = r.Rating,
-                Comment = r.Comment,
-                CreatedAt = r.CreatedAt
-            }
-        ).ToListAsync();
-
-        var count = reviews.Count;
-        var avg = count == 0 ? 0 : reviews.Average(x => x.Rating);
-
-        var vm = new ServiceDetailsVm
+    // ✅ Lấy owner (nhà cung cấp) từ Users theo service.UserId
+    var owner = await _db.Users.AsNoTracking()
+        .Where(u => u.Id == service.UserId)
+        .Select(u => new
         {
-            Service = service,
-            Reviews = reviews,
-            AvgRating = avg,
-            ReviewCount = count
-        };
+            u.FullName,
+            u.Avatar
+        })
+        .FirstOrDefaultAsync();
 
-        return View("~/Views/User/Services/Details.cshtml", vm);
-    }
+    // ✅ JOIN Users để lấy FullName + Avatar cho reviews
+    var reviews = await (
+        from r in _db.ServiceReviews.AsNoTracking()
+        join u in _db.Users.AsNoTracking() on r.UserId equals u.Id into uu
+        from u in uu.DefaultIfEmpty()
+        where r.ServiceId == id
+        orderby r.CreatedAt descending
+        select new ReviewItemVm
+        {
+            UserId = r.UserId,
+            FullName = u != null ? u.FullName : null,
+            Avatar = u != null ? u.Avatar : null, // ✅ avatar reviewer
+            Rating = r.Rating,
+            Comment = r.Comment,
+            CreatedAt = r.CreatedAt
+        }
+    ).ToListAsync();
+
+    var count = reviews.Count;
+    var avg = count == 0 ? 0 : reviews.Average(x => x.Rating);
+
+    var vm = new ServiceDetailsVm
+    {
+        Service = service,
+        Reviews = reviews,
+        AvgRating = avg,
+        ReviewCount = count,
+
+        OwnerFullName = owner?.FullName, // ✅ avatar nhà cung cấp
+        OwnerAvatar = owner?.Avatar
+    };
+
+    return View("~/Views/User/Services/Details.cshtml", vm);
+}
+
 }

@@ -2,12 +2,23 @@
 
 @{
     ViewData["Title"] = "Khám phá";
-    string PriceVnd(decimal v) => string.Format(System.Globalization.CultureInfo.GetCultureInfo("vi-VN"), "{0:N0}đ", v);
+
+    string PriceVnd(decimal v) =>
+        string.Format(System.Globalization.CultureInfo.GetCultureInfo("vi-VN"), "{0:N0}đ", v);
 
     var q = (string)(ViewBag.Q ?? "");
     var loc = (string)(ViewBag.Location ?? "");
     var cat = (string)(ViewBag.Category ?? "");
     var sort = (string)(ViewBag.Sort ?? "");
+
+    var cats = ViewBag.CategoryChips as List<booking.Controllers.UserController.CategoryChipVm>
+               ?? new List<booking.Controllers.UserController.CategoryChipVm>();
+
+    var services = Model?.ToList() ?? new List<booking.Models.Service>();
+    var totalShowing = services.Count;
+
+    // ✅ placeholder ảnh service (bé nhớ tạo file này trong wwwroot/images/)
+    var servicePlaceholder = Url.Content("~/images/placeholder-service.png");
 }
 
 <div class="min-h-screen bg-slate-50">
@@ -22,39 +33,42 @@
                     </div>
                 </div>
 
-                <!-- ✅ HEADER ACTIONS -->
-              <div class="flex items-center gap-3">
-    @if (User?.Identity?.IsAuthenticated ?? false)
-    {
-        <div class="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2">
-            <span class="text-xs text-slate-500">Xin chào,</span>
-            <span class="text-sm font-semibold text-slate-900">
-                @(User.Identity?.Name ?? "User")
-            </span>
-        </div>
+                <div class="flex items-center gap-3">
+                    @if (User?.Identity?.IsAuthenticated ?? false)
+                    {
+                        <div class="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2">
+                            <span class="text-xs text-slate-500">Xin chào,</span>
+                            <span class="text-sm font-semibold text-slate-900">
+                                @(User.Identity?.Name ?? "User")
+                            </span>
+                        </div>
 
-             <a asp-controller="Booking" asp-action="Index"
+                        <a asp-controller="Booking" asp-action="Index"
                            class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 hover:bg-slate-50">
                             Lịch của tôi
                         </a>
 
-        <form asp-controller="Account" asp-action="Logout" method="post" class="inline-block">
-            @Html.AntiForgeryToken()
-            <button type="submit"
-                    class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
-                Đăng xuất
-            </button>
-        </form>
-    }
-    else
-    {
-        <a asp-controller="Account" asp-action="Login"
-           class="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
-            Đăng nhập
-        </a>
-    }
-</div>
+                        <a asp-controller="Notifications" asp-action="Index"
+                           class="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
+                            🔔 Thông báo
+                        </a>
 
+                        <form asp-controller="Account" asp-action="Logout" method="post" class="inline-block">
+                            @Html.AntiForgeryToken()
+                            <button type="submit"
+                                    class="inline-flex items-center justify-center rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">
+                                Đăng xuất
+                            </button>
+                        </form>
+                    }
+                    else
+                    {
+                        <a asp-controller="Account" asp-action="Login"
+                           class="inline-flex items-center justify-center rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700">
+                            Đăng nhập
+                        </a>
+                    }
+                </div>
             </div>
 
             <!-- Tìm kiếm (GET) -->
@@ -86,7 +100,6 @@
                     </button>
                 </div>
 
-                <!-- giữ filter/sort khi submit -->
                 <input type="hidden" name="category" value="@cat" />
                 <input type="hidden" name="sort" value="@sort" />
             </form>
@@ -95,25 +108,25 @@
             <div class="mt-3 flex flex-wrap items-center gap-2 text-xs">
                 <span class="text-slate-500">Sắp xếp:</span>
 
-                <a asp-controller="Home" asp-action="Index"
+                <a asp-controller="User" asp-action="Index"
                    asp-route-q="@q" asp-route-location="@loc" asp-route-category="@cat" asp-route-sort="rating"
                    class="rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-700 hover:bg-slate-50 @(sort=="rating" || string.IsNullOrWhiteSpace(sort) ? "ring-2 ring-indigo-500 border-indigo-200" : "")">
                     Rating
                 </a>
 
-                <a asp-controller="Home" asp-action="Index"
+                <a asp-controller="User" asp-action="Index"
                    asp-route-q="@q" asp-route-location="@loc" asp-route-category="@cat" asp-route-sort="price_asc"
                    class="rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-700 hover:bg-slate-50 @(sort=="price_asc" ? "ring-2 ring-indigo-500 border-indigo-200" : "")">
                     Giá ↑
                 </a>
 
-                <a asp-controller="Home" asp-action="Index"
+                <a asp-controller="User" asp-action="Index"
                    asp-route-q="@q" asp-route-location="@loc" asp-route-category="@cat" asp-route-sort="price_desc"
                    class="rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-700 hover:bg-slate-50 @(sort=="price_desc" ? "ring-2 ring-indigo-500 border-indigo-200" : "")">
                     Giá ↓
                 </a>
 
-                <a asp-controller="Home" asp-action="Index"
+                <a asp-controller="User" asp-action="Index"
                    asp-route-q="@q" asp-route-location="@loc" asp-route-category="@cat" asp-route-sort="new"
                    class="rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-700 hover:bg-slate-50 @(sort=="new" ? "ring-2 ring-indigo-500 border-indigo-200" : "")">
                     Mới
@@ -121,7 +134,7 @@
 
                 @if (!string.IsNullOrWhiteSpace(q) || !string.IsNullOrWhiteSpace(loc) || !string.IsNullOrWhiteSpace(cat) || !string.IsNullOrWhiteSpace(sort))
                 {
-                    <a asp-controller="Home" asp-action="Index"
+                    <a asp-controller="User" asp-action="Index"
                        class="ml-auto rounded-full border border-slate-200 bg-white px-3 py-1 font-semibold text-slate-700 hover:bg-slate-50">
                         Xoá lọc
                     </a>
@@ -160,11 +173,10 @@
                     </div>
                 </div>
 
-                <!-- Thống kê nhanh -->
                 <div class="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
                     <div class="rounded-2xl border border-slate-200 p-4">
                         <div class="text-xs text-slate-500">Số dịch vụ</div>
-                        <div class="mt-1 text-xl font-bold text-slate-900">@Model.Count()</div>
+                        <div class="mt-1 text-xl font-bold text-slate-900">@totalShowing</div>
                     </div>
                     <div class="rounded-2xl border border-slate-200 p-4">
                         <div class="text-xs text-slate-500">Nhà cung cấp</div>
@@ -185,27 +197,23 @@
                 <div class="flex flex-wrap items-center gap-2 text-xs text-slate-600">
                     <span class="font-semibold text-slate-900">Đang hot:</span>
 
-                    <a asp-controller="User" asp-action="Hot" asp-route-q="Cắt tóc"
+                    <a asp-controller="User" asp-action="Index" asp-route-q="Cắt tóc"
                        class="rounded-full border border-slate-200 bg-white px-3 py-1 hover:bg-slate-50">
                         Cắt tóc
                     </a>
-
-                    <a asp-controller="User" asp-action="Hot" asp-route-q="Rửa xe"
+                    <a asp-controller="User" asp-action="Index" asp-route-q="Rửa xe"
                        class="rounded-full border border-slate-200 bg-white px-3 py-1 hover:bg-slate-50">
                         Rửa xe
                     </a>
-
-                    <a asp-controller="User" asp-action="Hot" asp-route-q="Khách sạn"
+                    <a asp-controller="User" asp-action="Index" asp-route-q="Khách sạn"
                        class="rounded-full border border-slate-200 bg-white px-3 py-1 hover:bg-slate-50">
                         Khách sạn
                     </a>
-
-                    <a asp-controller="User" asp-action="Hot" asp-route-q="Massage"
+                    <a asp-controller="User" asp-action="Index" asp-route-q="Massage"
                        class="rounded-full border border-slate-200 bg-white px-3 py-1 hover:bg-slate-50">
                         Massage
                     </a>
-
-                    <a asp-controller="User" asp-action="Hot" asp-route-q="Thú cưng"
+                    <a asp-controller="User" asp-action="Index" asp-route-q="Thú cưng"
                        class="rounded-full border border-slate-200 bg-white px-3 py-1 hover:bg-slate-50">
                         Chăm thú cưng
                     </a>
@@ -218,63 +226,73 @@
             <div class="flex items-end justify-between gap-3">
                 <div>
                     <h2 class="text-base sm:text-lg font-semibold text-slate-900">Danh mục</h2>
-                    <p class="mt-1 text-sm text-slate-600">Chọn loại dịch vụ bạn muốn đặt</p>
+                    <p class="mt-1 text-sm text-slate-600">
+                        Chọn danh mục để lọc ra các dịch vụ (theo doanh nghiệp thuộc danh mục đó)
+                    </p>
                 </div>
-                <a asp-controller="Home" asp-action="Index"
-                   class="text-sm font-medium text-indigo-600 hover:underline">
-                    Xem tất cả
-                </a>
-            </div>
 
-            @{
-                var cats = new[] {
-                    new { Icon="💇‍♂️", Name="Làm đẹp", Hint="Tóc, nail, spa" },
-                    new { Icon="🚗", Name="Ô tô", Hint="Rửa, sửa chữa" },
-                    new { Icon="🏨", Name="Khách sạn", Hint="Phòng, lưu trú" },
-                    new { Icon="🧑‍⚕️", Name="Sức khoẻ", Hint="Chăm sóc, trị liệu" },
-                    new { Icon="🐶", Name="Thú cưng", Hint="Tắm, grooming" },
-                    new { Icon="📚", Name="Học tập", Hint="Gia sư, khoá học" },
-                };
-            }
-
-            <div class="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-                @foreach (var c in cats)
+                @if (!string.IsNullOrWhiteSpace(cat))
                 {
-                    <a asp-controller="Home" asp-action="Index"
-                       asp-route-category="@c.Name"
+                    <a asp-controller="User" asp-action="Index"
                        asp-route-q="@q" asp-route-location="@loc" asp-route-sort="@sort"
-                       class="group block rounded-3xl border border-slate-200 bg-white p-4 text-left shadow-sm hover:shadow-md transition @(cat == c.Name ? "ring-2 ring-indigo-500 border-indigo-200" : "")">
-                        <div class="flex items-center gap-3">
-                            <div class="h-11 w-11 rounded-2xl bg-slate-50 flex items-center justify-center text-lg">
-                                @c.Icon
-                            </div>
-                            <div class="min-w-0">
-                                <div class="truncate text-sm font-semibold text-slate-900 group-hover:text-indigo-700">
-                                    @c.Name
-                                </div>
-                                <div class="truncate text-xs text-slate-500">@c.Hint</div>
-                            </div>
-                        </div>
+                       class="text-sm font-medium text-slate-700 hover:underline">
+                        Bỏ chọn danh mục
                     </a>
                 }
             </div>
+
+            <div class="mt-4 flex flex-wrap gap-2">
+                <a asp-controller="User" asp-action="Index"
+                   asp-route-q="@q" asp-route-location="@loc" asp-route-sort="@sort"
+                   class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 @(string.IsNullOrWhiteSpace(cat) ? "ring-2 ring-indigo-500 border-indigo-200" : "")">
+                    Tất cả
+                    <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">@totalShowing</span>
+                </a>
+
+                @foreach (var c in cats)
+                {
+                    var name = c.Name ?? "";
+                    var cnt = c.Count;
+
+                    <a asp-controller="User" asp-action="Index"
+                       asp-route-category="@name"
+                       asp-route-q="@q" asp-route-location="@loc" asp-route-sort="@sort"
+                       class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 @(cat == name ? "ring-2 ring-indigo-500 border-indigo-200" : "")">
+                        <span class="truncate max-w-[180px]">@name</span>
+                        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">@cnt</span>
+                    </a>
+                }
+            </div>
+
+            @if (!cats.Any())
+            {
+                <div class="mt-4 rounded-3xl border border-slate-200 bg-white p-5 text-sm text-slate-600">
+                    Chưa có danh mục nào trong DB BusinessCategories.
+                </div>
+            }
         </div>
 
-        <!-- Dịch vụ phổ biến (DB) -->
+        <!-- ✅ Dịch vụ phổ biến (DB) -->
         <div id="pho-bien" class="mt-8">
             <div class="flex items-end justify-between gap-3">
                 <div>
                     <h2 class="text-base sm:text-lg font-semibold text-slate-900">Dịch vụ phổ biến</h2>
-                    <p class="mt-1 text-sm text-slate-600">Hiển thị từ DB (Services)</p>
+                    <p class="mt-1 text-sm text-slate-600">
+                        Hiển thị từ DB (Services)
+                        @if (!string.IsNullOrWhiteSpace(cat))
+                        {
+                            <span>• đang lọc danh mục: <span class="font-semibold text-slate-900">@cat</span></span>
+                        }
+                    </p>
                 </div>
 
                 <div class="flex items-center gap-2">
-                    <a asp-controller="Home" asp-action="Index"
+                    <a asp-controller="User" asp-action="Index"
                        asp-route-q="@q" asp-route-location="@loc" asp-route-category="@cat" asp-route-sort="rating"
                        class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50">
                         Lọc (rating)
                     </a>
-                    <a asp-controller="Home" asp-action="Index"
+                    <a asp-controller="User" asp-action="Index"
                        asp-route-q="@q" asp-route-location="@loc" asp-route-category="@cat" asp-route-sort="price_asc"
                        class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50">
                         Sắp xếp (giá ↑)
@@ -283,18 +301,48 @@
             </div>
 
             <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                @foreach (var s in Model)
+                @foreach (var s in services)
                 {
+                    var thumb = string.IsNullOrWhiteSpace(s.Thumbnail) ? servicePlaceholder : Url.Content(s.Thumbnail);
+
                     <div class="rounded-3xl border border-slate-200 bg-white shadow-sm hover:shadow-md transition overflow-hidden">
+                        <!-- ✅ THUMBNAIL -->
+                        <div class="relative aspect-[16/10] bg-slate-100">
+                            <img src="@thumb"
+                                 class="h-full w-full object-cover"
+                                 loading="lazy"
+                                 onerror="this.onerror=null;this.src='@servicePlaceholder';" />
+
+                            <!-- badge trạng thái overlay -->
+                            <div class="absolute left-4 top-4">
+                                @if (s.IsActive)
+                                {
+                                    <span class="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-100">
+                                        Đang mở đặt
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">
+                                        Tạm đóng
+                                    </span>
+                                }
+                            </div>
+                        </div>
+
                         <div class="p-5">
                             <div class="flex items-start justify-between gap-3">
                                 <div class="min-w-0">
                                     <div class="truncate text-base font-semibold text-slate-900">@s.Name</div>
+
+@if (s.BusinessUser != null)
+{
+    <div class="mt-0.5 text-xs text-slate-500 truncate">
+        @s.BusinessUser.FullName
+    </div>
+}
+
                                     <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
-                                        @if (!string.IsNullOrWhiteSpace(s.Category))
-                                        {
-                                            <span class="rounded-full bg-slate-100 px-2 py-1">@s.Category</span>
-                                        }
                                         <span>• @s.DurationMinutes phút</span>
                                         @if (!string.IsNullOrWhiteSpace(s.Location))
                                         {
@@ -302,19 +350,6 @@
                                         }
                                     </div>
                                 </div>
-
-                                @if (s.IsActive)
-                                {
-                                    <span class="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                                        Đang mở đặt
-                                    </span>
-                                }
-                                else
-                                {
-                                    <span class="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
-                                        Tạm đóng
-                                    </span>
-                                }
                             </div>
 
                             <div class="mt-4 flex items-center justify-between">
@@ -345,62 +380,12 @@
                 }
             </div>
 
-            @if (!Model.Any())
+            @if (!services.Any())
             {
                 <div class="mt-6 rounded-3xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
-                    Không tìm thấy dịch vụ phù hợp. Thử đổi từ khóa hoặc khu vực.
+                    Không tìm thấy dịch vụ phù hợp. Thử đổi từ khóa, khu vực hoặc danh mục.
                 </div>
             }
-        </div>
-
-        <!-- Gợi ý cho bạn (giữ demo) -->
-        <div class="mt-10 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                    <h2 class="text-base sm:text-lg font-semibold text-slate-900">Gợi ý cho bạn</h2>
-                    <p class="mt-1 text-sm text-slate-600">
-                        Gợi ý cá nhân hoá (sau này: dựa trên đặt lịch, lượt xem, khu vực).
-                    </p>
-                </div>
-
-                <div class="flex gap-2">
-                    <button type="button"
-                            class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50">
-                        Làm mới
-                    </button>
-                    <button type="button"
-                            class="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white hover:bg-slate-800"
-                            onclick="window.showSwal?.('success','Ok luôn!','Phần này sau nối thuật toán gợi ý để demo “giống Shopee/Booking.com”.')">
-                        Demo
-                    </button>
-                </div>
-            </div>
-
-            <div class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div class="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                    <div class="text-sm font-semibold text-slate-900">Đặt nhanh</div>
-                    <div class="mt-1 text-sm text-slate-600">
-                        Chọn danh mục → xem khung giờ trống → xác nhận.
-                    </div>
-                    <div class="mt-4 flex gap-2">
-                        <a asp-controller="Booking" asp-action="Create"
-                           class="inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-indigo-700">
-                            Bắt đầu đặt
-                        </a>
-
-                    </div>
-                </div>
-
-                <div class="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                    <div class="text-sm font-semibold text-slate-900">Uy tín & chất lượng</div>
-                    <div class="mt-1 text-sm text-slate-600">
-                        Hiển thị điểm đánh giá, số review, huy hiệu “xác nhận nhanh”.
-                    </div>
-                    <div class="mt-4 text-xs text-slate-500">
-                        Sau này: hồ sơ nhà cung cấp, chính sách huỷ, và nhật ký audit.
-                    </div>
-                </div>
-            </div>
         </div>
 
         <div class="py-10 text-center text-xs text-slate-500">
@@ -410,13 +395,13 @@
 </div>
 
 @section Scripts {
-@if (TempData["SwalSuccess"] != null)
+@if (TempData["SwalMessage"] != null)
 {
 <script>
   Swal.fire({
-    icon: 'success',
-    title: 'Thành công',
-    text: @Html.Raw(Json.Serialize(TempData["SwalSuccess"])),
+    icon: '@(TempData["SwalType"] ?? "info")',
+    title: '@(TempData["SwalTitle"] ?? "Thông báo")',
+    text: @Html.Raw(System.Text.Json.JsonSerializer.Serialize(TempData["SwalMessage"]?.ToString() ?? "")),
     confirmButtonText: 'OK'
   });
 </script>

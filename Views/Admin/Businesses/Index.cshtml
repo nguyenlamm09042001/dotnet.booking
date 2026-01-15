@@ -5,6 +5,7 @@
     var now = DateTime.Now;
 
     var m = Model ?? new booking.ViewModels.AdminBusinessesIndexVm();
+    var returnUrl = Context.Request.Path + Context.Request.QueryString;
 
     string StatusText(string? s)
     {
@@ -14,6 +15,7 @@
             "pending" => "Chờ duyệt",
             "active" => "Đang hoạt động",
             "blocked" => "Tạm khóa",
+            "suspended" => "Tạm khóa",
             "rejected" => "Từ chối",
             _ => string.IsNullOrWhiteSpace(s) ? "—" : s!
         };
@@ -27,6 +29,7 @@
             "pending" => "bg-amber-100 text-amber-700 ring-amber-200",
             "active" => "bg-emerald-100 text-emerald-700 ring-emerald-200",
             "blocked" => "bg-slate-200 text-slate-700 ring-slate-300",
+            "suspended" => "bg-slate-200 text-slate-700 ring-slate-300",
             "rejected" => "bg-rose-100 text-rose-700 ring-rose-200",
             _ => "bg-slate-100 text-slate-700 ring-slate-200"
         };
@@ -58,7 +61,7 @@
                         <div class="relative w-full">
                             <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M10 2a8 8 0 105.293 14.293l4.707 4.707 1.414-1.414-4.707-4.707A8 8 0 0010 2zm0 2a6 6 0 110 12 6 6 0 010-12z"/>
+                                    <path d="M10 2a8 8 0 105.293 14.293l4.707 4.707 1.414-1.414-4.707-4.707A8 8 0 0010 2zm0 2a6 6 0 110 12 6 6 0 010-12z" />
                                 </svg>
                             </span>
                             <input name="q" value="@m.Query"
@@ -132,7 +135,7 @@
                                 <div class="mt-1 text-sm text-slate-600">Role = business</div>
                             </div>
                             <span class="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 ring-1 ring-slate-200">
-                                @m.TotalItems
+                                @m.TotalBusinesses
                             </span>
                         </div>
                     </div>
@@ -148,7 +151,7 @@
                         <div>
                             <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Danh sách doanh nghiệp</h1>
                             <p class="mt-1 text-sm text-slate-600">
-                                Hiện tại doanh nghiệp = tài khoản user có role <span class="font-semibold text-slate-900">business</span>.
+                                Doanh nghiệp = user có role <span class="font-semibold text-slate-900">business</span>.
                             </p>
                         </div>
 
@@ -180,9 +183,36 @@
                     <div class="flex flex-col gap-3 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                             <div class="text-lg font-extrabold text-slate-900">Bảng doanh nghiệp</div>
-                            <div class="mt-1 text-sm text-slate-600">
-                                Hiển thị <span class="font-semibold text-slate-900">@m.FromItem</span>–<span class="font-semibold text-slate-900">@m.ToItem</span> /
-                                <span class="font-semibold text-slate-900">@m.TotalItems</span>
+
+                            <div class="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-600">
+                                <div>
+                                    Hiển thị
+                                    <span class="font-semibold text-slate-900">@m.FromItem</span>–<span class="font-semibold text-slate-900">@m.ToItem</span> /
+                                    <span class="font-semibold text-slate-900">@m.TotalItems</span>
+                                </div>
+
+                                <span class="text-slate-300">•</span>
+
+                                <form method="get" class="inline-flex items-center gap-2">
+                                    <input type="hidden" name="q" value="@m.Query" />
+                                    <input type="hidden" name="pageSize" value="@m.PageSize" />
+                                    <input type="hidden" name="sort" value="@m.Sort" />
+                                    <input type="hidden" name="page" value="1" />
+
+                                    <label class="text-xs font-bold uppercase tracking-wider text-slate-500">
+                                        Trạng thái
+                                    </label>
+
+                                    <select name="status" onchange="this.form.submit()"
+                                            class="h-8 rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-900
+                                                   focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                        <option value="all" selected="@(m.Status == "all" ? "selected" : null)">Tất cả</option>
+                                        <option value="pending" selected="@(m.Status == "pending" ? "selected" : null)">Chờ duyệt</option>
+                                        <option value="active" selected="@(m.Status == "active" ? "selected" : null)">Đang hoạt động</option>
+                                        <option value="suspended" selected="@(m.Status == "suspended" ? "selected" : null)">Tạm khóa</option>
+                                        <option value="rejected" selected="@(m.Status == "rejected" ? "selected" : null)">Từ chối</option>
+                                    </select>
+                                </form>
                             </div>
                         </div>
                     </div>
@@ -195,6 +225,7 @@
                                 <tr class="text-xs font-bold uppercase tracking-wider text-slate-600">
                                     <th class="px-6 py-4">Doanh nghiệp</th>
                                     <th class="px-6 py-4">Email</th>
+                                    <th class="px-6 py-4">Danh mục</th>
                                     <th class="px-6 py-4">Dịch vụ</th>
                                     <th class="px-6 py-4">Lịch hẹn</th>
                                     <th class="px-6 py-4">Ngày tạo</th>
@@ -207,7 +238,7 @@
                                 @if (m.Items == null || !m.Items.Any())
                                 {
                                     <tr>
-                                        <td colspan="7" class="px-6 py-10">
+                                        <td colspan="8" class="px-6 py-10">
                                             <div class="rounded-2xl border border-slate-200 bg-slate-50 p-6 text-center">
                                                 <div class="text-sm font-bold text-slate-900">Không có doanh nghiệp nào</div>
                                                 <div class="mt-1 text-sm text-slate-600">Thử đổi từ khoá tìm kiếm.</div>
@@ -219,6 +250,9 @@
                                 {
                                     foreach (var b in m.Items)
                                     {
+                                        var cats = b.Categories ?? new List<string>();
+                                        var catsJson = System.Text.Json.JsonSerializer.Serialize(cats);
+
                                         <tr class="hover:bg-slate-50">
                                             <td class="px-6 py-4">
                                                 <div class="font-semibold text-slate-900">@Safe(b.Name)</div>
@@ -227,6 +261,40 @@
 
                                             <td class="px-6 py-4">
                                                 <div class="text-slate-900">@Safe(b.OwnerEmail)</div>
+                                            </td>
+
+                                            <!-- ✅ Danh mục + modal -->
+                                            <td class="px-6 py-4">
+                                                @if (cats.Any())
+                                                {
+                                                    <div class="flex flex-wrap items-center gap-2">
+                                                        @foreach (var c in cats.Take(2))
+                                                        {
+                                                            <button type="button"
+                                                                    class="js-open-cats inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 ring-1 ring-slate-200 hover:bg-slate-200"
+                                                                    data-biz="@b.Id"
+                                                                    data-name="@Safe(b.Name)"
+                                                                    data-cats='@catsJson'>
+                                                                @c
+                                                            </button>
+                                                        }
+
+                                                        @if (cats.Count > 2)
+                                                        {
+                                                            <button type="button"
+                                                                    class="js-open-cats inline-flex items-center rounded-full bg-white px-3 py-1 text-xs font-extrabold text-slate-900 ring-1 ring-slate-300 hover:bg-slate-50"
+                                                                    data-biz="@b.Id"
+                                                                    data-name="@Safe(b.Name)"
+                                                                    data-cats='@catsJson'>
+                                                                +@(cats.Count - 2)
+                                                            </button>
+                                                        }
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-xs font-semibold text-rose-600">Chưa chọn</span>
+                                                }
                                             </td>
 
                                             <td class="px-6 py-4">
@@ -253,15 +321,72 @@
 
                                             <td class="px-6 py-4">
                                                 <div class="flex justify-end gap-2">
+
                                                     <a asp-controller="AdminUsers" asp-action="Index"
                                                        class="inline-flex h-10 min-w-[92px] items-center justify-center rounded-xl border border-slate-300 bg-white px-3 text-xs font-bold text-slate-900 hover:bg-slate-50">
                                                         Xem user
                                                     </a>
 
-                                                    <button type="button"
-                                                            class="inline-flex h-10 min-w-[92px] items-center justify-center rounded-xl bg-slate-900 px-3 text-xs font-bold text-white hover:bg-slate-800">
-                                                        Khóa (sắp có)
-                                                    </button>
+                                                    @if ((b.Status ?? "pending") == "pending")
+                                                    {
+                                                        <form asp-controller="AdminBusinesses" asp-action="Approve" method="post" class="js-approve-form">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="id" value="@b.Id" />
+                                                            <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                                            <input type="hidden" name="name" value="@b.Name" />
+
+                                                            <button type="submit"
+                                                                    class="inline-flex h-10 min-w-[92px] items-center justify-center rounded-xl bg-emerald-600 px-3 text-xs font-bold text-white hover:bg-emerald-700">
+                                                                Duyệt
+                                                            </button>
+                                                        </form>
+
+                                                        <form asp-controller="AdminBusinesses" asp-action="Reject" method="post" class="js-reject-form">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="id" value="@b.Id" />
+                                                            <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                                            <input type="hidden" name="name" value="@b.Name" />
+
+                                                            <button type="submit"
+                                                                    class="inline-flex h-10 min-w-[92px] items-center justify-center rounded-xl bg-rose-600 px-3 text-xs font-bold text-white hover:bg-rose-700">
+                                                                Từ chối
+                                                            </button>
+                                                        </form>
+                                                    }
+                                                    else if (b.Status == "active")
+                                                    {
+                                                        <form asp-controller="AdminBusinesses" asp-action="Suspend" method="post" class="js-lock-form">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="id" value="@b.Id" />
+                                                            <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                                            <input type="hidden" name="name" value="@b.Name" />
+
+                                                            <button type="submit"
+                                                                    class="inline-flex h-10 min-w-[92px] items-center justify-center rounded-xl bg-slate-900 px-3 text-xs font-bold text-white hover:bg-slate-800">
+                                                                Khóa
+                                                            </button>
+                                                        </form>
+                                                    }
+                                                    else if (b.Status == "suspended")
+                                                    {
+                                                        <form asp-controller="AdminBusinesses" asp-action="Restore" method="post" class="js-restore-form">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="id" value="@b.Id" />
+                                                            <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                                            <input type="hidden" name="name" value="@b.Name" />
+
+                                                            <button type="submit"
+                                                                    class="inline-flex h-10 min-w-[92px] items-center justify-center rounded-xl bg-emerald-600 px-3 text-xs font-bold text-white hover:bg-emerald-700">
+                                                                Khôi phục
+                                                            </button>
+                                                        </form>
+                                                    }
+                                                    else if (b.Status == "rejected")
+                                                    {
+                                                        <span class="inline-flex h-10 min-w-[92px] items-center justify-center rounded-xl bg-slate-100 px-3 text-xs font-bold text-slate-500">
+                                                            Đã từ chối
+                                                        </span>
+                                                    }
                                                 </div>
                                             </td>
                                         </tr>
@@ -286,10 +411,8 @@
                         }
 
                         <div class="flex flex-wrap items-center gap-2">
-                            <a asp-controller="AdminBusinesses" asp-action="Index"
-                               asp-route-page="@(p - 1)"
-                               asp-route-pageSize="@ps"
-                               asp-route-q="@q"
+                            <a asp-controller="AdminBusinesses" asp-action="Index" asp-route-page="@(p - 1)"
+                               asp-route-pageSize="@ps" asp-route-q="@q"
                                class="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-3 text-xs font-bold text-slate-900 hover:bg-slate-50 @(p <= 1 ? "pointer-events-none opacity-50" : "")">
                                 ← Trước
                             </a>
@@ -298,10 +421,8 @@
                                 @m.FromItem–@m.ToItem
                             </span>
 
-                            <a asp-controller="AdminBusinesses" asp-action="Index"
-                               asp-route-page="@(p + 1)"
-                               asp-route-pageSize="@ps"
-                               asp-route-q="@q"
+                            <a asp-controller="AdminBusinesses" asp-action="Index" asp-route-page="@(p + 1)"
+                               asp-route-pageSize="@ps" asp-route-q="@q"
                                class="inline-flex h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-3 text-xs font-bold text-slate-900 hover:bg-slate-50 @(p >= tp ? "pointer-events-none opacity-50" : "")">
                                 Sau →
                             </a>
@@ -313,3 +434,110 @@
         </div>
     </div>
 </div>
+
+<!-- ✅ MODAL: Categories (MỚI - nằm giữa màn hình) -->
+<div id="catsModal"
+     class="fixed inset-0 z-[60] hidden items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+    
+    <!-- Card -->
+    <div class="w-full max-w-md">
+        <div class="rounded-3xl border border-slate-200 bg-white shadow-xl">
+            <div class="flex items-start justify-between gap-3 px-6 py-5">
+                <div>
+                    <div class="text-xs font-bold uppercase tracking-wider text-slate-500">Danh mục doanh nghiệp</div>
+                    <div id="catsTitle" class="mt-1 text-lg font-extrabold text-slate-900">—</div>
+                    <div id="catsSub" class="mt-1 text-xs text-slate-500">—</div>
+                </div>
+
+                <button type="button" id="catsCloseBtn"
+                        class="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-100 text-slate-700 hover:bg-slate-200">
+                    ✕
+                </button>
+            </div>
+
+            <div class="h-px bg-slate-200"></div>
+
+            <div class="px-6 py-5">
+                <div id="catsList" class="flex flex-wrap gap-2"></div>
+
+                <div class="mt-5 text-right">
+                    <button type="button" id="catsOkBtn"
+                            class="inline-flex h-11 items-center justify-center rounded-2xl bg-indigo-600 px-4 text-sm font-semibold text-white hover:bg-indigo-700">
+                        Đóng
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@section Scripts {
+  <script>
+    // ===== Modal categories (MỚI) =====
+    const modal = document.getElementById("catsModal");
+    const closeBtn = document.getElementById("catsCloseBtn");
+    const okBtn = document.getElementById("catsOkBtn");
+    const titleEl = document.getElementById("catsTitle");
+    const subEl = document.getElementById("catsSub");
+    const listEl = document.getElementById("catsList");
+
+    function openCatsModal(name, bizId, cats) {
+        titleEl.textContent = name || "Doanh nghiệp";
+        subEl.textContent = bizId
+            ? `#${bizId} • Tổng ${cats.length} danh mục`
+            : `Tổng ${cats.length} danh mục`;
+
+        listEl.innerHTML = "";
+
+        if (!cats || cats.length === 0) {
+            listEl.innerHTML = `<span class="text-sm font-semibold text-rose-600">Chưa chọn danh mục</span>`;
+        } else {
+            cats.forEach(c => {
+                const span = document.createElement("span");
+                span.className = "inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 ring-1 ring-slate-200";
+                span.textContent = c;
+                listEl.appendChild(span);
+            });
+        }
+
+        // mở modal (MỚI: dùng flex)
+        modal.classList.remove("hidden");
+        modal.classList.add("flex");
+
+        // khóa scroll nền
+        document.documentElement.classList.add("overflow-hidden");
+    }
+
+    function closeCatsModal() {
+        modal.classList.add("hidden");
+        modal.classList.remove("flex");
+        document.documentElement.classList.remove("overflow-hidden");
+    }
+
+
+    document.querySelectorAll(".js-open-cats").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const name = btn.dataset.name || "Doanh nghiệp";
+            const bizId = btn.dataset.biz || "";
+            let cats = [];
+            try { cats = JSON.parse(btn.dataset.cats || "[]"); } catch { cats = []; }
+            openCatsModal(name, bizId, cats);
+        });
+    });
+
+    // click ra ngoài card để đóng (MỚI)
+    modal.addEventListener("click", (e) => {
+        // nếu click vào nền overlay (catsModal) chứ không phải click vào card con bên trong
+        if (e.target === modal) closeCatsModal();
+    });
+
+    closeBtn?.addEventListener("click", closeCatsModal);
+    okBtn?.addEventListener("click", closeCatsModal);
+
+    document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape" && !modal.classList.contains("hidden")) closeCatsModal();
+    });
+</script>
+
+}
