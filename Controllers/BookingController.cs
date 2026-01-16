@@ -38,8 +38,6 @@ public class BookingController : Controller
     private static string NormStatus(string? s) => (s ?? "").Trim().ToLower();
 
     // =========================
-
-    // =========================
     private void SetSwal(string type, string title, string message, string? redirect = null)
     {
         TempData["SwalType"] = type;       // success | error | warning | info | question
@@ -58,41 +56,54 @@ public class BookingController : Controller
     private const int SLOT_STEP_MINUTES = 30;
 
     // =========================
-// GET /Booking/AvailableSlots?serviceId=2&date=2026-01-15
-// Trả JSON slot theo ngày (dùng luồng B: còn staff rảnh)
-// =========================
-[HttpGet]
-public async Task<IActionResult> AvailableSlots(int serviceId, string date)
-{
-    if (serviceId <= 0) return BadRequest(new { message = "serviceId invalid" });
-
-    if (!DateOnly.TryParse(date, out var d))
-        return BadRequest(new { message = "date invalid (yyyy-MM-dd)" });
-
-    // service tồn tại + đang active?
-    var s = await _db.Services.AsNoTracking().FirstOrDefaultAsync(x => x.Id == serviceId);
-    if (s == null) return NotFound(new { message = "service not found" });
-
-    if (!s.IsActive)
+    // GET /Booking/AvailableSlots?serviceId=2&date=2026-01-15
+    // Trả JSON slot theo ngày (dùng luồng B: còn staff rảnh)
+    // =========================
+    [HttpGet]
+    public async Task<IActionResult> AvailableSlots(int serviceId, string date)
     {
-        // tuỳ ý: trả toàn booked hoặc trả rỗng
-        return Ok(new List<object>());
+        if (serviceId <= 0) return BadRequest(new { message = "serviceId invalid" });
+
+        if (!DateOnly.TryParse(date, out var d))
+            return BadRequest(new { message = "date invalid (yyyy-MM-dd)" });
+
+        // service tồn tại + đang active?
+        var s = await _db.Services.AsNoTracking().FirstOrDefaultAsync(x => x.Id == serviceId);
+        if (s == null) return NotFound(new { message = "service not found" });
+
+        if (!s.IsActive)
+        {
+            // tuỳ ý: trả toàn booked hoặc trả rỗng
+            return Ok(new List<object>());
+        }
+
+        var slots = await BuildSlotsAsync(serviceId, d, SLOT_START, SLOT_END, SLOT_STEP_MINUTES);
+
+        // fallback giống luồng Create GET của bé
+        if (slots.Count == 0)
+        {
+            var options = BuildTimeOptions(SLOT_START, SLOT_END, SLOT_STEP_MINUTES);
+            slots = options.Select(t => new TimeSlotVm
+            {
+                Value = t,
+                IsBooked = false,
+                Capacity = 0,
+                Remaining = 0,
+                IsPast = false
+            }).ToList();
+        }
+
+        var payload = slots.Select(x => new
+        {
+            value = x.Value,
+            isBooked = x.IsBooked,
+            capacity = x.Capacity,
+            remaining = x.Remaining,
+            isPast = x.IsPast
+        }).ToList();
+
+        return Ok(payload);
     }
-
-    var slots = await BuildSlotsAsync(serviceId, d, SLOT_START, SLOT_END, SLOT_STEP_MINUTES);
-
-    // fallback giống luồng Create GET của bé
-    if (slots.Count == 0)
-    {
-        var options = BuildTimeOptions(SLOT_START, SLOT_END, SLOT_STEP_MINUTES);
-        slots = options.Select(t => new TimeSlotVm { Value = t, IsBooked = false }).ToList();
-    }
-
-    // JSON shape: { value, isBooked }
-    var payload = slots.Select(x => new { value = x.Value, isBooked = x.IsBooked }).ToList();
-    return Ok(payload);
-}
-
 
     // =========================
     // GET /Booking/Create?serviceId=2
@@ -109,7 +120,7 @@ public async Task<IActionResult> AvailableSlots(int serviceId, string date)
         if (!s.IsActive)
         {
             SetSwal("warning", "Thông báo", "Dịch vụ đang tạm đóng, chưa thể đặt lịch.");
-            return RedirectToAction("Index", "Services"); // /Views/User/Services/Index.cshtml
+            return RedirectToAction("Index", "Services");
         }
 
         var date = DateOnly.FromDateTime(DateTime.Today);
@@ -119,7 +130,14 @@ public async Task<IActionResult> AvailableSlots(int serviceId, string date)
         if (slots.Count == 0)
         {
             var options = BuildTimeOptions(SLOT_START, SLOT_END, SLOT_STEP_MINUTES);
-            slots = options.Select(t => new TimeSlotVm { Value = t, IsBooked = false }).ToList();
+            slots = options.Select(t => new TimeSlotVm
+            {
+                Value = t,
+                IsBooked = false,
+                Capacity = 0,
+                Remaining = 0,
+                IsPast = false
+            }).ToList();
         }
 
         var firstFree = slots.FirstOrDefault(x => !x.IsBooked)?.Value ?? slots.First().Value;
@@ -154,7 +172,14 @@ public async Task<IActionResult> AvailableSlots(int serviceId, string date)
         if (vm.TimeSlots.Count == 0)
         {
             var options = BuildTimeOptions(SLOT_START, SLOT_END, SLOT_STEP_MINUTES);
-            vm.TimeSlots = options.Select(t => new TimeSlotVm { Value = t, IsBooked = false }).ToList();
+            vm.TimeSlots = options.Select(t => new TimeSlotVm
+            {
+                Value = t,
+                IsBooked = false,
+                Capacity = 0,
+                Remaining = 0,
+                IsPast = false
+            }).ToList();
         }
 
         vm.TimeOptions = vm.TimeSlots.Select(x => x.Value).ToList();
@@ -192,32 +217,31 @@ public async Task<IActionResult> AvailableSlots(int serviceId, string date)
         }
 
         // =========================
-// CHẶN NGÀY QUÁ KHỨ / GIỜ ĐÃ QUA (server-side)
-// =========================
-var today = DateOnly.FromDateTime(DateTime.Today);
+        // CHẶN NGÀY QUÁ KHỨ / GIỜ ĐÃ QUA (server-side)
+        // =========================
+        var today = DateOnly.FromDateTime(DateTime.Today);
 
-// 1) ngày trong quá khứ
-if (vm.Date < today)
-{
-    SetSwal("warning", "Không hợp lệ", "Bạn không thể chọn ngày trong quá khứ. Vui lòng chọn ngày khác.");
-    ModelState.AddModelError(nameof(vm.Date), "Ngày đã qua.");
-    return View(VIEW_BOOKING_CREATE, vm);
-}
+        // 1) ngày trong quá khứ
+        if (vm.Date < today)
+        {
+            SetSwal("warning", "Không hợp lệ", "Bạn không thể chọn ngày trong quá khứ. Vui lòng chọn ngày khác.");
+            ModelState.AddModelError(nameof(vm.Date), "Ngày đã qua.");
+            return View(VIEW_BOOKING_CREATE, vm);
+        }
 
-// 2) nếu chọn hôm nay thì giờ phải >= hiện tại (18:23 => 18:00 bị khóa, 18:30 ok)
-if (vm.Date == today)
-{
-    var now = TimeOnly.FromDateTime(DateTime.Now);
+        // 2) nếu chọn hôm nay thì giờ phải >= hiện tại
+        if (vm.Date == today)
+        {
+            var now = TimeOnly.FromDateTime(DateTime.Now);
 
-    // Rule: slot bắt đầu trước "now" là không hợp lệ
-    if (t < now)
-    {
-        SetSwal("warning", "Không hợp lệ", "Giờ bạn chọn đã qua. Vui lòng chọn giờ khác.");
-        ModelState.AddModelError(nameof(vm.Time), "Giờ đã qua.");
-        return View(VIEW_BOOKING_CREATE, vm);
-    }
-}
-
+            // Rule: slot bắt đầu trước "now" là không hợp lệ
+            if (t < now)
+            {
+                SetSwal("warning", "Không hợp lệ", "Giờ bạn chọn đã qua. Vui lòng chọn giờ khác.");
+                ModelState.AddModelError(nameof(vm.Time), "Giờ đã qua.");
+                return View(VIEW_BOOKING_CREATE, vm);
+            }
+        }
 
         var pickedSlot = vm.TimeSlots.FirstOrDefault(x => x.Value == vm.Time);
         if (pickedSlot == null)
@@ -240,6 +264,23 @@ if (vm.Date == today)
         {
             SetSwal("error", "Lỗi", "Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.", "/Account/Login");
             return RedirectToAction("Login", "Account");
+        }
+
+        // (OPTIONAL) chặn 1 user đặt 2 lần cùng giờ cùng service
+        // Nếu bé muốn cho phép đặt nhiều lần thì comment đoạn này.
+        var existedSameTime = await _db.BookingOrders.AsNoTracking().AnyAsync(b =>
+            b.UserId == userId &&
+            b.ServiceId == vm.ServiceId &&
+            b.Date == vm.Date &&
+            b.Time == t &&
+            !new[] { "canceled", "cancelled" }.Contains((b.Status ?? "").Trim().ToLower())
+        );
+
+        if (existedSameTime)
+        {
+            SetSwal("warning", "Thông báo", "Bạn đã đặt khung giờ này rồi. Vui lòng chọn giờ khác.");
+            ModelState.AddModelError(nameof(vm.Time), "Bạn đã đặt khung giờ này rồi.");
+            return View(VIEW_BOOKING_CREATE, vm);
         }
 
         // ===== LUỒNG B: AUTO ASSIGN STAFF =====
@@ -288,10 +329,10 @@ if (vm.Date == today)
                 title: "Có lịch hẹn mới",
                 message: $"#{booking.Id} • {booking.CustomerName} • {booking.Date:dd/MM/yyyy} {booking.Time:HH\\:mm}",
                 type: "booking_new",
-    linkUrl: $"/BusinessBookings/Details/{booking.Id}"
+                linkUrl: $"/BusinessBookings/Details/{booking.Id}"
             );
 
-            // (tuỳ chọn) notify staff được auto-assign
+            // notify staff được auto-assign
             await _noti.CreateAsync(
                 userId: booking.StaffUserId!.Value,
                 title: "Bạn có lịch mới",
@@ -459,7 +500,6 @@ if (vm.Date == today)
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Cancel(int id)
     {
-        // ===== get current user id =====
         var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!int.TryParse(userIdStr, out var userId) || userId <= 0)
         {
@@ -467,7 +507,6 @@ if (vm.Date == today)
             return RedirectToAction(nameof(Index));
         }
 
-        // ===== find booking (đúng owner) =====
         var booking = await _db.BookingOrders
             .Include(x => x.Service)
             .FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
@@ -478,7 +517,6 @@ if (vm.Date == today)
             return RedirectToAction(nameof(Index));
         }
 
-        // chỉ cho huỷ khi pending
         var stLower = NormStatus(booking.Status);
         if (stLower != ST_PENDING)
         {
@@ -486,7 +524,6 @@ if (vm.Date == today)
             return RedirectToAction(nameof(Index));
         }
 
-        // ===== 10 minutes rule (CreatedAt lưu UTC) =====
         var createdUtc = booking.CreatedAt.Kind == DateTimeKind.Unspecified
             ? DateTime.SpecifyKind(booking.CreatedAt, DateTimeKind.Utc)
             : booking.CreatedAt.ToUniversalTime();
@@ -497,13 +534,9 @@ if (vm.Date == today)
             return RedirectToAction(nameof(Index));
         }
 
-        // ===== update =====
         booking.Status = ST_CANCELED;
         await _db.SaveChangesAsync();
 
-        // =========================
-        // NOTIFICATION: khách huỷ lịch
-        // =========================
         try
         {
             var businessUserId = booking.Service?.UserId
@@ -519,7 +552,7 @@ if (vm.Date == today)
                     title: "Khách đã huỷ lịch",
                     message: $"#{booking.Id} • {booking.CustomerName} • {booking.Date:dd/MM/yyyy} {booking.Time:HH\\:mm}",
                     type: "booking_canceled",
-    linkUrl: $"/BusinessBookings/Details/{booking.Id}"
+                    linkUrl: $"/BusinessBookings/Details/{booking.Id}"
                 );
             }
 
@@ -530,7 +563,7 @@ if (vm.Date == today)
                     title: "Lịch đã bị huỷ",
                     message: $"#{booking.Id} • {booking.CustomerName} • {booking.Date:dd/MM/yyyy} {booking.Time:HH\\:mm}",
                     type: "booking_canceled",
-    linkUrl: $"/Staff/BookingDetail?id={booking.Id}"
+                    linkUrl: $"/Staff/BookingDetail?id={booking.Id}"
                 );
             }
         }
@@ -544,7 +577,7 @@ if (vm.Date == today)
     }
 
     // =========================
-    // Helpers (slot builder) - LUỒNG B
+    // Helpers (slot builder) - LUỒNG B (capacity/remaining)
     // =========================
     private async Task<List<TimeSlotVm>> BuildSlotsAsync(
         int serviceId, DateOnly date, string start, string end, int stepMinutes)
@@ -555,7 +588,16 @@ if (vm.Date == today)
         // lấy service => biết business + duration
         var s = await _db.Services.AsNoTracking().FirstOrDefaultAsync(x => x.Id == serviceId);
         if (s == null)
-            return options.Select(t => new TimeSlotVm { Value = t, IsBooked = true }).ToList();
+        {
+            return options.Select(t => new TimeSlotVm
+            {
+                Value = t,
+                IsBooked = true,
+                Capacity = 0,
+                Remaining = 0,
+                IsPast = false
+            }).ToList();
+        }
 
         var businessUserId = s.UserId;
         var dur = (s.DurationMinutes > 0) ? s.DurationMinutes : stepMinutes;
@@ -563,24 +605,51 @@ if (vm.Date == today)
         // staff eligible
         var eligible = await GetEligibleStaffIdsAsync(businessUserId, serviceId);
         if (eligible.Count == 0)
-            return options.Select(t => new TimeSlotVm { Value = t, IsBooked = true }).ToList();
+        {
+            return options.Select(t => new TimeSlotVm
+            {
+                Value = t,
+                IsBooked = true,
+                Capacity = 0,
+                Remaining = 0,
+                IsPast = false
+            }).ToList();
+        }
+
+        var cap = eligible.Count;
 
         var result = new List<TimeSlotVm>();
 
-        // MVP: loop từng slot và check còn staff rảnh hay không
+        // ===== đánh dấu slot đã qua nếu chọn HÔM NAY =====
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var nowMin = ToMinutes(TimeOnly.FromDateTime(DateTime.Now));
+
         foreach (var opt in options)
         {
             TimeOnly.TryParse(opt, out var tt);
+
             var reqStart = ToMinutes(tt);
             var reqEnd = reqStart + Math.Max(1, dur);
 
+            // past-time chỉ xét khi date == today
+            var isPast = (date == today) && (reqStart < nowMin);
+
             var busy = await GetBusyStaffIdsAsync(date, reqStart, reqEnd, eligible);
-            var freeCount = eligible.Count - busy.Count;
+            var remaining = cap - busy.Count;
+
+            // nếu đã qua giờ thì coi như không chọn được (UI sẽ disable)
+            if (isPast)
+            {
+                remaining = 0;
+            }
 
             result.Add(new TimeSlotVm
             {
                 Value = opt,
-                IsBooked = freeCount <= 0
+                Capacity = cap,
+                Remaining = remaining,
+                IsPast = isPast,
+                IsBooked = remaining <= 0
             });
         }
 
@@ -605,7 +674,6 @@ if (vm.Date == today)
     // =========================
     private async Task<List<int>> GetEligibleStaffIdsAsync(int businessUserId, int serviceId)
     {
-        // staff thuộc business + active + có nhận service
         var ids = await (
             from sp in _db.StaffProfiles.AsNoTracking()
             join ss in _db.StaffServices.AsNoTracking()
@@ -629,19 +697,20 @@ if (vm.Date == today)
     {
         if (eligibleStaffIds.Count == 0) return new List<int>();
 
-        // Busy nếu overlap khoảng thời gian (tính theo duration của service từng booking)
-        var busy = await (
-            from b in _db.BookingOrders.AsNoTracking()
-            join s in _db.Services.AsNoTracking() on b.ServiceId equals s.Id
-            where b.Date == date
-                  && b.StaffUserId != null
-                  && eligibleStaffIds.Contains(b.StaffUserId.Value)
-                  && !new[] { "canceled", "cancelled" }.Contains((b.Status ?? "").Trim().ToLower())
-            let bStart = (b.Time.Hour * 60 + b.Time.Minute)
-            let bEnd = (b.Time.Hour * 60 + b.Time.Minute) + (s.DurationMinutes > 0 ? s.DurationMinutes : 0)
-            where bStart < reqEndMin && bEnd > reqStartMin
-            select b.StaffUserId!.Value
-        ).Distinct().ToListAsync();
+      var busy = await (
+    from b in _db.BookingOrders.AsNoTracking()
+    join s in _db.Services.AsNoTracking() on b.ServiceId equals s.Id
+    where b.Date == date
+          && b.StaffUserId != null
+          && eligibleStaffIds.Contains(b.StaffUserId.Value)
+          && !new[] { "canceled", "cancelled" }.Contains((b.Status ?? "").Trim().ToLower())
+    let bStart = (b.Time.Hour * 60 + b.Time.Minute)
+    let dur = (s.DurationMinutes > 0 ? s.DurationMinutes : SLOT_STEP_MINUTES)
+    let bEnd = bStart + dur
+    where bStart < reqEndMin && bEnd > reqStartMin
+    select b.StaffUserId!.Value
+).Distinct().ToListAsync();
+
 
         return busy;
     }
@@ -671,22 +740,23 @@ if (vm.Date == today)
         int CntOf(int sid) => load.FirstOrDefault(x => x.StaffId == sid)?.Cnt ?? 0;
 
         // Giảm race condition: thử từng staff theo thứ tự, check lại còn rảnh không
-        foreach (var sid in free.OrderBy(sid => CntOf(sid)).ThenBy(sid => sid))
-        {
-            var stillBusy = await (
-                from b in _db.BookingOrders.AsNoTracking()
-                join s in _db.Services.AsNoTracking() on b.ServiceId equals s.Id
-                where b.Date == date
-                      && b.StaffUserId == sid
-                      && !new[] { "canceled", "cancelled" }.Contains((b.Status ?? "").Trim().ToLower())
-                let bStart = (b.Time.Hour * 60 + b.Time.Minute)
-                let bEnd = (b.Time.Hour * 60 + b.Time.Minute) + (s.DurationMinutes > 0 ? s.DurationMinutes : 0)
-                where bStart < reqEnd && bEnd > reqStart
-                select b.Id
-            ).AnyAsync();
+      foreach (var sid in free.OrderBy(sid => CntOf(sid)).ThenBy(sid => sid))
+{
+    var stillBusy = await (
+        from b in _db.BookingOrders.AsNoTracking()
+        join s in _db.Services.AsNoTracking() on b.ServiceId equals s.Id
+        where b.Date == date
+              && b.StaffUserId == sid
+              && !new[] { "canceled", "cancelled" }.Contains((b.Status ?? "").Trim().ToLower())
+        let bStart = (b.Time.Hour * 60 + b.Time.Minute)
+        let dur = (s.DurationMinutes > 0 ? s.DurationMinutes : SLOT_STEP_MINUTES)
+        let bEnd = bStart + dur
+        where bStart < reqEnd && bEnd > reqStart
+        select b.Id
+    ).AnyAsync();
 
-            if (!stillBusy) return sid;
-        }
+    if (!stillBusy) return sid;
+}
 
         return null;
     }

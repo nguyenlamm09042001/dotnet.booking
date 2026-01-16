@@ -39,6 +39,18 @@ public class BookingCreateVm
 // ✅ VM cho từng khung giờ
 public class TimeSlotVm
 {
-    public string Value { get; set; } = ""; // "09:00"
-    public bool IsBooked { get; set; }      // true = đã có người đặt (không chọn)
+    public string Value { get; set; } = "";  // "09:00"
+
+    // true = hết staff rảnh (slot không còn nhận thêm booking)
+    public bool IsBooked { get; set; }
+
+    // ✅ mới: tổng staff nhận service này
+    public int Capacity { get; set; }
+
+    // ✅ mới: staff còn rảnh cho slot này
+    public int Remaining { get; set; }
+
+    // ✅ mới: slot đã qua giờ (chỉ dùng cho hôm nay)
+    public bool IsPast { get; set; }
 }
+

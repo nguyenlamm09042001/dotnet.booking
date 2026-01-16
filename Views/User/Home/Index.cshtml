@@ -1,4 +1,5 @@
 ﻿@model IEnumerable<booking.Models.Service>
+@using booking.ViewModels
 
 @{
     ViewData["Title"] = "Khám phá";
@@ -19,6 +20,36 @@
 
     // ✅ placeholder ảnh service (bé nhớ tạo file này trong wwwroot/images/)
     var servicePlaceholder = Url.Content("~/images/placeholder-service.png");
+
+    // ✅ business cards (ViewBag từ UserController)
+    var bizCards = ViewBag.BusinessCards as List<BusinessCardVm> ?? new List<BusinessCardVm>();
+    var bizAvatarPlaceholder = Url.Content("~/images/placeholder-avatar.png");
+
+    string BizStatusVi(string? s)
+    {
+        s = (s ?? "pending").Trim().ToLower();
+        return s switch
+        {
+            "active" => "Đang hoạt động",
+            "pending" => "Chờ duyệt",
+            "suspended" => "Tạm khóa",
+            "rejected" => "Từ chối",
+            _ => s
+        };
+    }
+
+    string BizStatusBadge(string? s)
+    {
+        s = (s ?? "pending").Trim().ToLower();
+        return s switch
+        {
+            "active" => "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100",
+            "pending" => "bg-amber-50 text-amber-700 ring-1 ring-amber-100",
+            "suspended" => "bg-slate-100 text-slate-700 ring-1 ring-slate-200",
+            "rejected" => "bg-rose-50 text-rose-700 ring-1 ring-rose-100",
+            _ => "bg-slate-100 text-slate-700 ring-1 ring-slate-200"
+        };
+    }
 }
 
 <div class="min-h-screen bg-slate-50">
@@ -221,6 +252,76 @@
             </div>
         </div>
 
+        <!-- ✅ Doanh nghiệp nổi bật -->
+        <div class="mt-8">
+            <div class="flex items-end justify-between gap-3">
+                <div>
+                    <h2 class="text-base sm:text-lg font-semibold text-slate-900">Doanh nghiệp nổi bật</h2>
+                    <p class="mt-1 text-sm text-slate-600">
+                        Bấm vào để xem tổng quan doanh nghiệp (dịch vụ, rating, booking, nhân viên…)
+                    </p>
+                </div>
+            </div>
+
+            @if (!bizCards.Any())
+            {
+                <div class="mt-4 rounded-3xl border border-slate-200 bg-white p-6 text-sm text-slate-600">
+                    Chưa có doanh nghiệp để hiển thị. (Cần có Services thuộc các business)
+                </div>
+            }
+            else
+            {
+                <div class="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    @foreach (var b in bizCards)
+                    {
+                        var av = string.IsNullOrWhiteSpace(b.Avatar) ? bizAvatarPlaceholder : Url.Content(b.Avatar);
+
+                        <a asp-controller="User" asp-action="Business" asp-route-id="@b.BusinessUserId"
+                           class="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition block">
+                            <div class="flex items-start gap-4">
+                                <img src="@av"
+                                     class="h-12 w-12 rounded-2xl object-cover ring-1 ring-slate-200"
+                                     onerror="this.onerror=null;this.src='@bizAvatarPlaceholder';" />
+
+                                <div class="min-w-0 flex-1">
+                                    <div class="flex items-start justify-between gap-2">
+                                        <div class="min-w-0">
+                                            <div class="truncate text-base font-semibold text-slate-900">@b.FullName</div>
+                                            <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                                                <span>⭐ @b.AvgRating.ToString("0.0")</span>
+                                                <span>• @b.TotalReviews đánh giá</span>
+                                                <span>• @b.ServiceCount dịch vụ</span>
+                                            </div>
+                                        </div>
+
+                                        <span class="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold @BizStatusBadge(b.Status)">
+                                            @BizStatusVi(b.Status)
+                                        </span>
+                                    </div>
+
+                                    @if (b.Categories != null && b.Categories.Any())
+                                    {
+                                        <div class="mt-3 flex flex-wrap gap-2">
+                                            @foreach (var c in b.Categories.Take(4))
+                                            {
+                                                <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700 ring-1 ring-slate-200">
+                                                    @c
+                                                </span>
+                                            }
+                                        </div>
+                                    }
+
+                                    <div class="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-indigo-700">
+                                        Xem tổng quan →
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    }
+                </div>
+            }
+        </div>
+
         <!-- Danh mục -->
         <div class="mt-6">
             <div class="flex items-end justify-between gap-3">
@@ -335,12 +436,12 @@
                                 <div class="min-w-0">
                                     <div class="truncate text-base font-semibold text-slate-900">@s.Name</div>
 
-@if (s.BusinessUser != null)
-{
-    <div class="mt-0.5 text-xs text-slate-500 truncate">
-        @s.BusinessUser.FullName
-    </div>
-}
+                                    @if (s.BusinessUser != null)
+                                    {
+                                        <div class="mt-0.5 text-xs text-slate-500 truncate">
+                                            @s.BusinessUser.FullName
+                                        </div>
+                                    }
 
                                     <div class="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
                                         <span>• @s.DurationMinutes phút</span>
