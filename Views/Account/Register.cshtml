@@ -1,78 +1,171 @@
 @model booking.ViewModels.RegisterVm
 
 @{
-    ViewData["Title"] = "Register";
+    ViewData["Title"] = "Đăng ký";
 }
 
-<div class="min-h-screen flex items-center justify-center bg-gray-100">
-    <div class="w-full max-w-md bg-white p-8 rounded-xl shadow">
-        <h1 class="text-2xl font-bold text-center mb-6">Create account</h1>
+<div class="min-h-screen bg-gradient-to-b from-slate-50 to-white px-4 py-10">
+  <div class="mx-auto w-full max-w-md">
 
-        <form asp-controller="Account" asp-action="Register" method="post" class="space-y-4">
-            @Html.AntiForgeryToken()
+    <!-- Header -->
+    <div class="mb-6 text-center">
+      <div class="mx-auto inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">
+        <span class="h-2 w-2 rounded-full bg-indigo-500"></span>
+        Booking
+      </div>
 
-            <!-- Email -->
-            <div>
-                <input asp-for="Email" class="w-full border px-3 py-2 rounded-lg" placeholder="Email" />
-                <span asp-validation-for="Email" class="text-sm text-red-600"></span>
-            </div>
-
-            <div>
-                <input asp-for="FullName" class="w-full border px-3 py-2 rounded-lg" placeholder="FullName" />
-                <span asp-validation-for="FullName" class="text-sm text-red-600"></span>
-            </div>
-
-
-            <!-- Password -->
-            <div>
-                <input asp-for="Password" type="password" class="w-full border px-3 py-2 rounded-lg"
-                    placeholder="Password" />
-                <span asp-validation-for="Password" class="text-sm text-red-600"></span>
-            </div>
-
-            <!-- Confirm password -->
-            <div>
-                <input asp-for="ConfirmPassword" type="password" class="w-full border px-3 py-2 rounded-lg"
-                    placeholder="Confirm password" />
-                <span asp-validation-for="ConfirmPassword" class="text-sm text-red-600"></span>
-            </div>
-
-            <!-- 🔹 Account type: User / Business -->
-            <div class="border rounded-lg p-3">
-                <div class="text-sm font-semibold text-gray-700 mb-2">
-                    Bạn đăng ký với tư cách:
-                </div>
-
-                <div class="flex items-center gap-4">
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" asp-for="AccountType" value="user" checked class="accent-green-600" />
-                        <span class="text-sm">Người dùng</span>
-                    </label>
-
-                    <label class="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" asp-for="AccountType" value="business" class="accent-green-600" />
-                        <span class="text-sm">Doanh nghiệp</span>
-                    </label>
-                </div>
-
-                <span asp-validation-for="AccountType" class="text-sm text-red-600"></span>
-            </div>
-
-            <!-- Submit -->
-            <button class="w-full bg-green-600 text-white py-2 rounded-lg font-semibold hover:bg-green-700">
-                Sign up
-            </button>
-        </form>
-
-        <p class="text-sm text-center mt-4">
-            Already have an account?
-            <a asp-controller="Account" asp-action="Login" class="text-blue-600 hover:underline">
-                Login
-            </a>
-        </p>
+      <h1 class="mt-4 text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900">
+        Tạo tài khoản
+      </h1>
+      <p class="mt-1 text-sm text-slate-600">
+        Điền thông tin để bắt đầu đặt lịch và quản lý dịch vụ.
+      </p>
     </div>
+
+    <!-- Card -->
+    <div class="rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div class="border-b border-slate-200 px-6 py-6">
+        <div class="text-base font-extrabold text-slate-900">Create account</div>
+        <div class="mt-1 text-sm text-slate-600">Đăng ký nhanh trong 1 phút.</div>
+      </div>
+
+      <form id="registerForm"
+            asp-controller="Account"
+            asp-action="Register"
+            method="post"
+            class="px-6 py-6 space-y-5">
+        @Html.AntiForgeryToken()
+
+        <!-- Email -->
+        <div>
+          <label asp-for="Email" class="block text-sm font-semibold text-slate-700"></label>
+          <div class="mt-2 relative">
+            <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 13.065 2.4 6.6A2 2 0 0 1 4 6h16a2 2 0 0 1 1.6.6ZM12 15 2 8v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8Z"/>
+              </svg>
+            </span>
+
+            <input asp-for="Email"
+                   autocomplete="email"
+                   class="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-900
+                          placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300"
+                   placeholder="you@example.com" />
+          </div>
+          <span asp-validation-for="Email" class="mt-1 block text-xs text-rose-600"></span>
+        </div>
+
+        <!-- FullName -->
+        <div>
+          <label asp-for="FullName" class="block text-sm font-semibold text-slate-700"></label>
+          <div class="mt-2 relative">
+            <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2Zm0 4a3 3 0 1 1-3 3 3 3 0 0 1 3-3Zm0 14a7.966 7.966 0 0 1-5.5-2.2 4.5 4.5 0 0 1 9 0A7.966 7.966 0 0 1 12 20Z"/>
+              </svg>
+            </span>
+
+            <input asp-for="FullName"
+                   class="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-900
+                          placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300"
+                   placeholder="Họ tên" />
+          </div>
+          <span asp-validation-for="FullName" class="mt-1 block text-xs text-rose-600"></span>
+        </div>
+
+        <!-- Password -->
+        <div>
+          <label asp-for="Password" class="block text-sm font-semibold text-slate-700"></label>
+          <div class="mt-2 relative">
+            <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17 8h-1V6a4 4 0 0 0-8 0v2H7a3 3 0 0 0-3 3v7a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-7a3 3 0 0 0-3-3Zm-7-2a2 2 0 0 1 4 0v2h-4Zm2 12a2 2 0 1 1 2-2 2 2 0 0 1-2 2Z"/>
+              </svg>
+            </span>
+
+            <input asp-for="Password"
+                   type="password"
+                   autocomplete="new-password"
+                   class="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-900
+                          placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300"
+                   placeholder="Mật khẩu" />
+          </div>
+          <span asp-validation-for="Password" class="mt-1 block text-xs text-rose-600"></span>
+        </div>
+
+        <!-- ConfirmPassword -->
+        <div>
+          <label asp-for="ConfirmPassword" class="block text-sm font-semibold text-slate-700"></label>
+          <div class="mt-2 relative">
+            <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M17 8h-1V6a4 4 0 0 0-8 0v2H7a3 3 0 0 0-3 3v7a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-7a3 3 0 0 0-3-3Zm-7-2a2 2 0 0 1 4 0v2h-4Zm2 12a2 2 0 1 1 2-2 2 2 0 0 1-2 2Z"/>
+              </svg>
+            </span>
+
+            <input asp-for="ConfirmPassword"
+                   type="password"
+                   autocomplete="new-password"
+                   class="h-11 w-full rounded-2xl border border-slate-200 bg-white pl-10 pr-3 text-sm text-slate-900
+                          placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-300"
+                   placeholder="Nhập lại mật khẩu" />
+          </div>
+          <span asp-validation-for="ConfirmPassword" class="mt-1 block text-xs text-rose-600"></span>
+        </div>
+
+        <!-- Account type -->
+        <div class="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+          <div class="text-sm font-extrabold text-slate-900">Bạn đăng ký với tư cách</div>
+          <div class="mt-1 text-sm text-slate-600">Chọn loại tài khoản phù hợp nhu cầu.</div>
+
+          <div class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label class="group flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:bg-slate-50">
+              <div class="min-w-0">
+                <div class="text-sm font-extrabold text-slate-900">Người dùng</div>
+                <div class="mt-1 text-xs text-slate-500">Đặt lịch và theo dõi booking.</div>
+              </div>
+              <input type="radio" asp-for="AccountType" value="user" checked
+                     class="h-5 w-5 text-indigo-600 focus:ring-indigo-300" />
+            </label>
+
+            <label class="group flex cursor-pointer items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:bg-slate-50">
+              <div class="min-w-0">
+                <div class="text-sm font-extrabold text-slate-900">Doanh nghiệp</div>
+                <div class="mt-1 text-xs text-slate-500">Tạo dịch vụ và nhận lịch hẹn.</div>
+              </div>
+              <input type="radio" asp-for="AccountType" value="business"
+                     class="h-5 w-5 text-indigo-600 focus:ring-indigo-300" />
+            </label>
+          </div>
+
+          <span asp-validation-for="AccountType" class="mt-2 block text-xs text-rose-600"></span>
+        </div>
+
+        <!-- Summary fallback -->
+        <div class="text-xs text-rose-600">
+          @Html.ValidationSummary(excludePropertyErrors: true)
+        </div>
+
+        <!-- Submit -->
+        <button type="submit"
+                class="inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-5 py-3
+                       text-sm font-extrabold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+          Sign up
+        </button>
+      </form>
+
+      <!-- Footer -->
+      <div class="border-t border-slate-200 bg-slate-50/60 px-6 py-5 rounded-b-3xl text-center text-sm">
+        <span class="text-slate-600">Đã có tài khoản?</span>
+        <a asp-controller="Account" asp-action="Login"
+           class="ml-1 font-semibold text-indigo-600 hover:underline">
+          Login
+        </a>
+      </div>
+    </div>
+  </div>
 </div>
 
 @section Scripts {
-    <partial name="_ValidationScriptsPartial" />
+  <partial name="_ValidationScriptsPartial" />
 }

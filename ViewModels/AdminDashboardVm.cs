@@ -35,4 +35,20 @@ public class AdminDashboardVm
         // ✅ NEW: danh mục của doanh nghiệp
         public List<string> Categories { get; set; } = new();
     }
+
+    public List<PendingAdRow> PendingAdsPreview { get; set; } = new();
+
+public class PendingAdRow
+{
+    public int Id { get; set; }
+    public string? Code { get; set; }
+    public int BusinessId { get; set; }
+    public string? BusinessName { get; set; }
+    public decimal Amount { get; set; }
+    public int Days { get; set; }
+    public DateTime? StartAt { get; set; }
+    public DateTime? PaidAt { get; set; }
+    public string? Status { get; set; }
+}
+
 }

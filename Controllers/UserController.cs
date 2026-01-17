@@ -113,7 +113,7 @@ public class UserController : Controller
             .Select(u => new BusinessCardVm
             {
                 BusinessUserId = u.Id,
-                FullName = u.FullName,
+                FullName = u.FullName ?? "",
                 Avatar = u.Avatar,
                 Status = u.Status,
 
@@ -138,6 +138,37 @@ public class UserController : Controller
             .ThenByDescending(x => x.TotalReviews)
             .Take(12)
             .ToListAsync();
+
+        var now = DateTime.UtcNow;
+
+var sponsoredBusinesses =
+    (from mo in _db.MarketingOrders
+     join u in _db.Users on mo.BusinessId equals u.Id
+     where mo.Status == "approved"
+           && mo.EndAt > now
+     select new SponsoredBusinessVm
+     {
+         BusinessUserId = u.Id,
+         FullName = u.FullName ?? "",
+         Avatar = u.Avatar,
+
+         ServiceCount = _db.Services
+             .Count(s => s.UserId == u.Id),
+
+         AvgRating = _db.Services
+             .Where(s => s.UserId == u.Id)
+             .Select(s => (double?)s.Rating)
+             .Average() ?? 0,
+
+         TotalReviews = _db.Services
+             .Where(s => s.UserId == u.Id)
+             .Sum(s => s.ReviewCount)
+     })
+    .Distinct()
+    .ToList();
+
+ViewBag.SponsoredBusinesses = sponsoredBusinesses;
+
 
         // ===== 3) ViewBag =====
         ViewBag.Q = q ?? "";
@@ -244,7 +275,7 @@ var avgRating = totalReviews > 0 ? (decimal)(reviewAgg!.Avg) : 0m;
             ServiceName = x.s.Name,
 
             ReviewerUserId = x.u.Id,
-            ReviewerName = x.u.FullName,
+            ReviewerName = x.u.FullName ?? "",
             ReviewerAvatar = x.u.Avatar
         })
         .ToListAsync();
@@ -336,7 +367,7 @@ var groups = topServices.Select(s =>
     var vm = new BusinessOverviewVm
     {
         BusinessUserId = biz.Id,
-        FullName = biz.FullName,
+        FullName = biz.FullName ??  "",
         Avatar = biz.Avatar,
         Status = biz.Status,
 

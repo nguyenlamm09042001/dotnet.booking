@@ -360,6 +360,13 @@ public class AccountController : Controller
             SetSwal("warning", "Chưa được kích hoạt", msg);
             return View(vm);
         }
+        // ✅ Chặn customer bị suspended
+if (role == "customer" && status == "suspended")
+{
+    SetSwal("error", "Tài khoản bị tạm đình chỉ", "Tài khoản của bạn đang bị tạm đình chỉ. Vui lòng liên hệ quản trị viên.");
+    return View(vm);
+}
+
 
         // ✅ Chặn staff bị khóa
         if (role == "staff")

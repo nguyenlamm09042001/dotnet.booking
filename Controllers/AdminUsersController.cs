@@ -72,4 +72,36 @@ public class AdminUsersController : Controller
 
         return RedirectToAction(nameof(Index));
     }
+
+    [HttpGet]
+public async Task<IActionResult> Details(int id)
+{
+    var u = await _db.Users.AsNoTracking()
+        .FirstOrDefaultAsync(x => x.Id == id && x.Role != "admin");
+    if (u == null) return NotFound();
+
+    return View("~/Views/Admin/User/Details.cshtml", u);
+}
+
+[HttpPost]
+[ValidateAntiForgeryToken]
+public async Task<IActionResult> ToggleLock(int id, string? returnUrl)
+{
+    var u = await _db.Users.FirstOrDefaultAsync(x => x.Id == id && x.Role != "admin");
+    if (u == null) return NotFound();
+
+    var s = (u.Status ?? "").Trim().ToLowerInvariant();
+
+    // active <-> suspended
+    u.Status = (s == "suspended") ? "active" : "suspended";
+
+    await _db.SaveChangesAsync();
+
+    if (!string.IsNullOrWhiteSpace(returnUrl) && Url.IsLocalUrl(returnUrl))
+        return Redirect(returnUrl);
+
+    return RedirectToAction(nameof(Details), new { id });
+}
+
+
 }

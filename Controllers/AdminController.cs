@@ -57,6 +57,9 @@ public class AdminController : Controller
             .Take(5)
             .ToListAsync();
 
+        // ✅ Ads pending preview (5 đơn)
+
+
         // ✅ ===== Pending businesses preview TOP 10 =====
         var pendingBizPreview = await _db.Users.AsNoTracking()
             .Where(u => u.Role == "business" && (u.Status ?? "pending") == "pending")
@@ -116,6 +119,29 @@ public class AdminController : Controller
             RecentUsers = recentUsers,
             PendingBusinessesPreview = pendingBizPreview
         };
+
+        vm.PendingAdsPreview = await _db.MarketingOrders
+    .AsNoTracking()
+    .Where(x => x.Status == "pending")
+    .OrderByDescending(x => x.PaidAt ?? x.CreatedAt)
+    .Take(5)
+    .Select(x => new AdminDashboardVm.PendingAdRow
+    {
+        Id = x.Id,
+        Code = x.Code,
+        BusinessId = x.BusinessId,
+        BusinessName = _db.Users
+            .Where(u => u.Id == x.BusinessId)
+            .Select(u => u.FullName ?? u.Email)
+            .FirstOrDefault() ?? "—",
+        Amount = x.Amount,
+        Days = x.Days,
+        StartAt = x.StartAt,
+        PaidAt = x.PaidAt,
+        Status = x.Status
+    })
+    .ToListAsync();
+
 
         return View("~/Views/Admin/Home/Index.cshtml", vm);
     }

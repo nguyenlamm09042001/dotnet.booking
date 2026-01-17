@@ -15,8 +15,10 @@ public class AppDbContext : DbContext
     public DbSet<BookingOrder> BookingOrders => Set<BookingOrder>();
     public DbSet<ServiceReview> ServiceReviews => Set<ServiceReview>();
     public DbSet<Notification> Notifications => Set<Notification>();
-
     public DbSet<ServiceCategory> ServiceCategories => Set<ServiceCategory>();
+    public DbSet<MarketingOrder> MarketingOrders => Set<MarketingOrder>();
+
+
 
     // =========================
     // BUSINESS CATEGORY

@@ -1,0 +1,196 @@
+@model booking.ViewModels.AdminMarketingDetailsVm
+
+@{
+    ViewData["Title"] = "Chi tiết Ads";
+
+    string Norm(string? s) => (s ?? "").Trim().ToLowerInvariant();
+
+    string StBadge(string? st)
+    {
+        st = Norm(st);
+        return st switch
+        {
+            "pending" => "inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700 ring-1 ring-amber-200",
+            "approved" => "inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200",
+            "rejected" => "inline-flex items-center rounded-full bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700 ring-1 ring-rose-200",
+            _ => "inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 ring-1 ring-slate-200"
+        };
+    }
+
+    string StText(string? st)
+    {
+        st = Norm(st);
+        return st switch
+        {
+            "pending" => "Chờ duyệt",
+            "approved" => "Đã duyệt",
+            "rejected" => "Từ chối",
+            _ => st ?? ""
+        };
+    }
+}
+
+<div class="min-h-screen bg-white text-slate-900">
+  <div class="mx-auto max-w-5xl px-4 py-8 space-y-6">
+
+    <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <div class="text-xs font-bold uppercase tracking-wider text-slate-500">Đơn Ads</div>
+          <h1 class="mt-1 text-2xl font-extrabold tracking-tight text-slate-900">
+            @(Model.Code ?? $"ADS-{Model.Id}")
+          </h1>
+          <div class="mt-2 flex flex-wrap items-center gap-2">
+            <span class="@StBadge(Model.Status)">@StText(Model.Status)</span>
+            <span class="text-xs text-slate-500">#ID-@Model.Id</span>
+            <span class="text-xs text-slate-500">Created: @Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap gap-2">
+          <a asp-controller="AdminMarketing" asp-action="Index"
+             class="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-900 hover:bg-slate-50">
+            ← Danh sách
+          </a>
+
+          <a asp-controller="Admin" asp-action="Index"
+             class="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-900 hover:bg-slate-50">
+            Dashboard
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
+      <section class="lg:col-span-7 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div class="text-lg font-extrabold text-slate-900">Thông tin đơn</div>
+
+        <div class="mt-4 space-y-3 text-sm">
+          <div class="flex items-center justify-between">
+            <div class="text-slate-600">Số tiền</div>
+            <div class="font-extrabold text-slate-900">
+              @string.Format(System.Globalization.CultureInfo.GetCultureInfo("vi-VN"), "{0:N0}đ", Model.Amount)
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between">
+            <div class="text-slate-600">Số ngày chạy</div>
+            <div class="font-semibold text-slate-900">@Model.Days ngày</div>
+          </div>
+
+          <div class="flex items-center justify-between">
+            <div class="text-slate-600">Ngày bắt đầu</div>
+            <div class="font-semibold text-slate-900">@(Model.StartAt?.ToString("dd/MM/yyyy") ?? "—")</div>
+          </div>
+
+          <div class="flex items-center justify-between">
+            <div class="text-slate-600">Thời điểm CK</div>
+            <div class="font-semibold text-slate-900">@(Model.PaidAt?.ToString("dd/MM/yyyy HH:mm") ?? "—")</div>
+          </div>
+        </div>
+
+        @if (Norm(Model.Status) == "pending")
+        {
+          <div class="mt-6 flex flex-wrap gap-2">
+            <form asp-controller="AdminMarketing" asp-action="Approve" method="post"
+                  class="js-approve-form"
+                  data-code="@(Model.Code ?? $"ADS-{Model.Id}")"
+                  data-biz="@Model.BusinessName">
+              @Html.AntiForgeryToken()
+              <input type="hidden" name="id" value="@Model.Id" />
+              <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+              <button type="submit"
+                      class="inline-flex h-11 items-center justify-center rounded-2xl bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700">
+                Duyệt đơn
+              </button>
+            </form>
+
+            <form asp-controller="AdminMarketing" asp-action="Reject" method="post"
+                  class="js-reject-form"
+                  data-code="@(Model.Code ?? $"ADS-{Model.Id}")"
+                  data-biz="@Model.BusinessName">
+              @Html.AntiForgeryToken()
+              <input type="hidden" name="id" value="@Model.Id" />
+              <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+              <button type="submit"
+                      class="inline-flex h-11 items-center justify-center rounded-2xl bg-rose-600 px-4 text-sm font-semibold text-white hover:bg-rose-700">
+                Từ chối
+              </button>
+            </form>
+          </div>
+        }
+      </section>
+
+      <aside class="lg:col-span-5 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div class="text-lg font-extrabold text-slate-900">Doanh nghiệp</div>
+
+        <div class="mt-4 space-y-2 text-sm">
+          <div class="font-semibold text-slate-900">@Model.BusinessName</div>
+          <div class="text-slate-600">#BIZ-@Model.BusinessId</div>
+          @if (!string.IsNullOrWhiteSpace(Model.BusinessEmail))
+          {
+            <div class="text-slate-600">@Model.BusinessEmail</div>
+          }
+        </div>
+
+        <div class="mt-5">
+          <a asp-controller="AdminBusinesses" asp-action="Index" asp-route-q="@Model.BusinessEmail"
+             class="inline-flex h-11 w-full items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-900 hover:bg-slate-50">
+            Mở doanh nghiệp →
+          </a>
+        </div>
+      </aside>
+    </div>
+
+  </div>
+</div>
+
+@section Scripts {
+  <script>
+    // Confirm duyệt / từ chối
+    (function () {
+      if (!window.Swal) return;
+
+      function bindConfirm(selector, options) {
+        document.querySelectorAll(selector).forEach(form => {
+          if (form.dataset.bound === "1") return;
+          form.dataset.bound = "1";
+
+          form.addEventListener("submit", function (e) {
+            e.preventDefault();
+
+            const code = form.getAttribute("data-code") || "";
+            const biz = form.getAttribute("data-biz") || "";
+            const subtitle = [code ? `Mã: ${code}` : "", biz ? `DN: ${biz}` : ""].filter(Boolean).join(" • ");
+
+            Swal.fire({
+              icon: options.icon,
+              title: options.title,
+              text: subtitle ? `${options.text}\n${subtitle}` : options.text,
+              showCancelButton: true,
+              confirmButtonText: options.confirmText,
+              cancelButtonText: "Hủy",
+              reverseButtons: true
+            }).then(r => {
+              if (r.isConfirmed) form.submit();
+            });
+          });
+        });
+      }
+
+      bindConfirm(".js-approve-form", {
+        icon: "question",
+        title: "Duyệt đơn Ads?",
+        text: "Sau khi duyệt, đơn sẽ chuyển sang trạng thái Đã duyệt.",
+        confirmText: "Duyệt"
+      });
+
+      bindConfirm(".js-reject-form", {
+        icon: "warning",
+        title: "Từ chối đơn Ads?",
+        text: "Sau khi từ chối, đơn sẽ chuyển sang trạng thái Từ chối.",
+        confirmText: "Từ chối"
+      });
+    })();
+  </script>
+}

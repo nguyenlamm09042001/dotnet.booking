@@ -79,7 +79,6 @@ public class BookingController : Controller
 
         var slots = await BuildSlotsAsync(serviceId, d, SLOT_START, SLOT_END, SLOT_STEP_MINUTES);
 
-        // fallback giống luồng Create GET của bé
         if (slots.Count == 0)
         {
             var options = BuildTimeOptions(SLOT_START, SLOT_END, SLOT_STEP_MINUTES);
@@ -267,7 +266,6 @@ public class BookingController : Controller
         }
 
         // (OPTIONAL) chặn 1 user đặt 2 lần cùng giờ cùng service
-        // Nếu bé muốn cho phép đặt nhiều lần thì comment đoạn này.
         var existedSameTime = await _db.BookingOrders.AsNoTracking().AnyAsync(b =>
             b.UserId == userId &&
             b.ServiceId == vm.ServiceId &&

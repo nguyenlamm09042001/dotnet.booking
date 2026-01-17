@@ -1,0 +1,197 @@
+@model booking.ViewModels.AdminMarketingIndexVm
+
+@{
+    ViewData["Title"] = "Duyệt Ads (Sponsored)";
+
+    string Norm(string? s) => (s ?? "").Trim().ToLowerInvariant();
+
+    string StBadge(string? st)
+    {
+        st = Norm(st);
+        return st switch
+        {
+            "pending" => "inline-flex items-center rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700 ring-1 ring-amber-200",
+            "approved" => "inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200",
+            "rejected" => "inline-flex items-center rounded-full bg-rose-100 px-3 py-1 text-xs font-bold text-rose-700 ring-1 ring-rose-200",
+            _ => "inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 ring-1 ring-slate-200"
+        };
+    }
+
+    string StText(string? st)
+    {
+        st = Norm(st);
+        return st switch
+        {
+            "pending" => "Chờ duyệt",
+            "approved" => "Đã duyệt",
+            "rejected" => "Từ chối",
+            _ => st ?? ""
+        };
+    }
+}
+
+<div class="min-h-screen bg-white text-slate-900">
+    <div class="mx-auto max-w-7xl px-4 py-8 space-y-6">
+
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h1 class="text-2xl font-extrabold tracking-tight text-slate-900">Duyệt Ads (Sponsored)</h1>
+                    <p class="mt-1 text-sm text-slate-600">Danh sách đơn quảng cáo • duyệt / từ chối</p>
+                </div>
+
+                <div class="flex gap-2">
+                    <a asp-controller="Admin" asp-action="Index"
+                       class="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-900 hover:bg-slate-50">
+                        ← Dashboard
+                    </a>
+                </div>
+            </div>
+
+            <div class="mt-5 grid grid-cols-1 gap-3 md:grid-cols-12">
+                <form asp-controller="AdminMarketing" asp-action="Index" method="get" class="md:col-span-8 flex gap-2">
+                    <input type="text" name="q" value="@(Model.Q ?? "")"
+                           class="h-11 w-full rounded-2xl border border-slate-300 bg-white px-4 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                           placeholder="Tìm theo mã đơn, tên/email doanh nghiệp, businessId..." />
+                    <button class="inline-flex h-11 items-center justify-center rounded-2xl bg-indigo-600 px-4 text-sm font-semibold text-white hover:bg-indigo-700">
+                        Tìm
+                    </button>
+                </form>
+
+                <form asp-controller="AdminMarketing" asp-action="Index" method="get" class="md:col-span-4 flex gap-2">
+                    <input type="hidden" name="q" value="@(Model.Q ?? "")" />
+                    <select name="status"
+                            class="h-11 w-full rounded-2xl border border-slate-300 bg-white px-4 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="" selected="@(string.IsNullOrWhiteSpace(Model.Status))">Tất cả trạng thái</option>
+                        <option value="pending" selected="@(Norm(Model.Status) == "pending")">Chờ duyệt</option>
+                        <option value="approved" selected="@(Norm(Model.Status) == "approved")">Đã duyệt</option>
+                        <option value="rejected" selected="@(Norm(Model.Status) == "rejected")">Từ chối</option>
+                    </select>
+                    <button class="inline-flex h-11 items-center justify-center rounded-2xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-900 hover:bg-slate-50">
+                        Lọc
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <section class="rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div class="flex items-center justify-between px-6 py-5">
+                <div class="text-lg font-extrabold text-slate-900">Danh sách đơn Ads</div>
+                <div class="text-sm text-slate-600">Tổng: <span class="font-semibold text-slate-900">@Model.Rows.Count</span></div>
+            </div>
+
+            <div class="h-px bg-slate-200"></div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full text-left text-sm">
+                    <thead class="bg-slate-100">
+                        <tr class="text-xs font-bold uppercase tracking-wider text-slate-600">
+                            <th class="px-6 py-4">Doanh nghiệp</th>
+                            <th class="px-6 py-4">Mã đơn</th>
+                            <th class="px-6 py-4">Bắt đầu</th>
+                            <th class="px-6 py-4">Số ngày</th>
+                            <th class="px-6 py-4">Số tiền</th>
+                            <th class="px-6 py-4">Trạng thái</th>
+                            <th class="px-6 py-4 text-right">Thao tác</th>
+                        </tr>
+                    </thead>
+
+                    <tbody class="divide-y divide-slate-200">
+                        @if (Model.Rows == null || !Model.Rows.Any())
+                        {
+                            <tr>
+                                <td colspan="7" class="px-6 py-8 text-sm text-slate-500">
+                                    Không có đơn Ads phù hợp.
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            foreach (var a in Model.Rows)
+                            {
+                                <tr class="hover:bg-slate-50">
+                                    <td class="px-6 py-4">
+                                        <div class="font-semibold text-slate-900">@a.BusinessName</div>
+                                        <div class="text-xs text-slate-500">#BIZ-@a.BusinessId</div>
+                                    </td>
+
+                                    <td class="px-6 py-4">
+                                        <div class="font-extrabold text-slate-900">@a.Code</div>
+                                        <div class="text-xs text-slate-500">Paid: @(a.PaidAt?.ToString("dd/MM HH:mm") ?? "—")</div>
+                                    </td>
+
+                                    <td class="px-6 py-4 text-slate-700">
+                                        @(a.StartAt?.ToString("dd/MM/yyyy") ?? "—")
+                                    </td>
+
+                                    <td class="px-6 py-4 text-slate-700">@a.Days ngày</td>
+
+                                    <td class="px-6 py-4 font-semibold text-slate-900">
+                                        @string.Format(System.Globalization.CultureInfo.GetCultureInfo("vi-VN"), "{0:N0}đ", a.Amount)
+                                    </td>
+
+                                    <td class="px-6 py-4">
+                                        <span class="@StBadge(a.Status)">@StText(a.Status)</span>
+                                    </td>
+
+                                    <td class="px-6 py-4">
+                                        <div class="flex justify-end gap-2">
+                                            @if (Norm(a.Status) == "pending")
+                                            {
+                                                <form asp-controller="AdminMarketing" asp-action="Approve" method="post">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@a.Id" />
+                                                    <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                                                    <button type="submit"
+                                                            class="inline-flex h-10 min-w-[92px] items-center justify-center rounded-xl bg-emerald-600 px-3 text-xs font-bold text-white hover:bg-emerald-700">
+                                                        Duyệt
+                                                    </button>
+                                                </form>
+
+                                                <form asp-controller="AdminMarketing" asp-action="Reject" method="post">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@a.Id" />
+                                                    <input type="hidden" name="returnUrl" value="@Context.Request.Path@Context.Request.QueryString" />
+                                                    <button type="submit"
+                                                            class="inline-flex h-10 min-w-[92px] items-center justify-center rounded-xl bg-rose-600 px-3 text-xs font-bold text-white hover:bg-rose-700">
+                                                        Từ chối
+                                                    </button>
+                                                </form>
+                                            }
+                                            else
+                                            {
+                                                <span class="text-xs font-semibold text-slate-500">—</span>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="px-6 py-5 text-sm text-slate-600">
+                Tip: Dùng ô tìm kiếm để gõ <span class="font-semibold text-slate-900">mã đơn</span> hoặc <span class="font-semibold text-slate-900">tên/email doanh nghiệp</span>.
+            </div>
+        </section>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const type = "@(TempData["SwalType"] ?? "")";
+            const title = "@(TempData["SwalTitle"] ?? "")";
+            const message = "@(TempData["SwalMessage"] ?? "")";
+            if (type && title && window.Swal) {
+                Swal.fire({
+                    icon: type,
+                    title: title,
+                    text: message,
+                    confirmButtonText: "OK"
+                });
+            }
+        })();
+    </script>
+}

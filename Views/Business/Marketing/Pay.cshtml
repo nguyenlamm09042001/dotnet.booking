@@ -1,0 +1,210 @@
+@model booking.ViewModels.MarketingPayVm
+@{
+  ViewData["Title"] = "Thanh toán Ads";
+  string Vnd(decimal v) => string.Format(System.Globalization.CultureInfo.GetCultureInfo("vi-VN"), "{0:N0}đ", v);
+
+  var payCode = (string)(ViewBag.PayCode ?? "");
+  var amount = (decimal)(ViewBag.Amount ?? 0m);
+  var days = (int)(ViewBag.Days ?? 0);
+  var startAt = (string)(ViewBag.StartAt ?? "—");
+}
+
+<div class="min-h-screen bg-gradient-to-b from-slate-50 to-white">
+  <div class="mx-auto max-w-4xl px-4 py-10">
+
+    <!-- Header -->
+    <div class="mb-6">
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <div class="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">
+            <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+            Payment
+          </div>
+
+          <h1 class="mt-3 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+            Thanh toán Ads
+          </h1>
+          <p class="mt-1 text-sm text-slate-600">
+            Quét QR để chuyển khoản. Hệ thống sẽ đối soát theo <span class="font-semibold text-slate-900">nội dung chuyển khoản</span>.
+          </p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <a asp-controller="BusinessMarketing" asp-action="Index"
+             class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
+            ← Lịch sử Ads
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main grid -->
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
+
+      <!-- QR card -->
+      <div class="lg:col-span-7 rounded-3xl border border-slate-200 bg-white shadow-sm">
+        <div class="border-b border-slate-200 px-6 py-5">
+          <div class="text-lg font-extrabold text-slate-900">Quét QR để chuyển khoản</div>
+          <div class="mt-1 text-sm text-slate-600">Ưu tiên dùng app ngân hàng để quét QR cho đúng nội dung.</div>
+        </div>
+
+        <div class="px-6 py-6">
+          <div class="flex flex-col items-center">
+            <img
+              src="@ViewBag.QrUrl"
+              alt="QR Techcombank"
+              class="h-60 w-60 rounded-3xl bg-white ring-1 ring-slate-200 shadow-sm object-contain"
+            />
+
+            <div class="mt-5 w-full max-w-sm rounded-3xl border border-slate-200 bg-slate-50 p-5">
+              <div class="text-center">
+                <div class="text-base font-extrabold text-slate-900">Techcombank</div>
+                <div class="mt-2 text-sm text-slate-700">
+                  <span class="font-semibold">STK:</span>
+                  <span id="stkText" class="font-bold">999321</span>
+                </div>
+                <div class="mt-1 text-sm text-slate-700">
+                  <span class="font-semibold">Chủ TK:</span>
+                  <span class="font-bold">Nguyễn Lam</span>
+                </div>
+
+                <div class="mt-4 rounded-2xl bg-white p-4 ring-1 ring-slate-200">
+                  <div class="text-xs font-semibold text-slate-500">Nội dung CK</div>
+                  <div class="mt-1 break-all text-sm font-extrabold text-slate-900" id="transferContent">
+                    @ViewBag.TransferContent
+                  </div>
+                  <div class="mt-2 text-xs text-slate-500">
+                    * Vui lòng giữ đúng nội dung để hệ thống nhận diện đơn.
+                  </div>
+                </div>
+
+                <div class="mt-4 flex items-center justify-center gap-2">
+                  <button type="button" id="btnCopyStk"
+                          class="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
+                    Copy STK
+                  </button>
+
+                  <button type="button" id="btnCopyContent"
+                          class="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-slate-800">
+                    Copy nội dung
+                  </button>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary / Note -->
+      <div class="lg:col-span-5 space-y-6">
+        <div class="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div class="text-sm font-extrabold text-slate-900">Tóm tắt đơn Ads</div>
+
+          <div class="mt-4 space-y-3">
+            <div class="flex items-center justify-between text-sm">
+              <div class="text-slate-600">Mã thanh toán</div>
+              <div class="font-bold text-slate-900">@payCode</div>
+            </div>
+
+            <div class="flex items-center justify-between text-sm">
+              <div class="text-slate-600">Ngày bắt đầu</div>
+              <div class="font-semibold text-slate-900">@startAt</div>
+            </div>
+
+            <div class="flex items-center justify-between text-sm">
+              <div class="text-slate-600">Số ngày</div>
+              <div class="font-semibold text-slate-900">@days ngày</div>
+            </div>
+
+            <div class="h-px bg-slate-200"></div>
+
+            <div class="flex items-center justify-between">
+              <div class="text-sm font-semibold text-slate-700">Tổng cần chuyển</div>
+              <div class="text-xl font-extrabold text-slate-900">@Vnd(amount)</div>
+            </div>
+
+            <div class="mt-2 rounded-2xl bg-emerald-50 p-4 ring-1 ring-emerald-200">
+              <div class="text-xs font-semibold text-emerald-700">Lưu ý quan trọng</div>
+              <div class="mt-1 text-sm text-slate-700">
+                Chuyển khoản đúng <span class="font-semibold">số tiền</span> và đúng <span class="font-semibold">nội dung CK</span>.
+                Nếu sai nội dung, đơn có thể bị chậm đối soát.
+              </div>
+            </div>
+
+          <form asp-action="Pay" method="post" class="flex gap-2">
+  @Html.AntiForgeryToken()
+
+  <input type="hidden" asp-for="Id" />
+
+  <button type="submit"
+          class="flex-1 inline-flex h-12 items-center justify-center rounded-2xl bg-slate-900 px-4 text-sm font-semibold text-white hover:bg-slate-800">
+    Tôi đã chuyển khoản
+  </button>
+
+  <a asp-controller="BusinessMarketing" asp-action="Index"
+     class="inline-flex h-12 items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 hover:bg-slate-50">
+    Để sau
+  </a>
+</form>
+
+          </div>
+        </div>
+
+        <div class="rounded-3xl border border-slate-200 bg-gradient-to-br from-indigo-50 to-white p-6 shadow-sm">
+          <div class="text-sm font-extrabold text-slate-900">Sau khi chuyển khoản</div>
+          <div class="mt-2 text-sm text-slate-700">
+            Trạng thái sẽ chuyển sang <span class="font-semibold">Chờ duyệt</span> và admin sẽ duyệt để hiển thị.
+            Bạn có thể theo dõi ở mục <span class="font-semibold">Lịch sử Ads</span>.
+          </div>
+          <div class="mt-4">
+            <a asp-controller="BusinessMarketing" asp-action="Index"
+               class="inline-flex items-center justify-center rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700">
+              Về Lịch sử Ads
+            </a>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+@section Scripts{
+<script>
+  (function(){
+    const copy = async (text) => {
+      try {
+        await navigator.clipboard.writeText(text);
+        Swal.fire({ icon: 'success', title: 'Đã copy', text: text, timer: 1200, showConfirmButton: false });
+      } catch {
+        Swal.fire({ icon: 'error', title: 'Không copy được', text: 'Trình duyệt không cho phép copy tự động.' });
+      }
+    };
+
+    const btnStk = document.getElementById('btnCopyStk');
+    const btnContent = document.getElementById('btnCopyContent');
+    const stkText = document.getElementById('stkText');
+    const content = document.getElementById('transferContent');
+
+    if (btnStk && stkText) {
+      btnStk.addEventListener('click', () => copy(stkText.textContent.trim()));
+    }
+    if (btnContent && content) {
+      btnContent.addEventListener('click', () => copy(content.textContent.trim()));
+    }
+
+    // swal từ TempData (nếu controller có set)
+    @if (TempData["SwalType"] != null)
+    {
+      <text>
+      Swal.fire({
+        icon: '@TempData["SwalType"]',
+        title: '@TempData["SwalTitle"]',
+        text: '@TempData["SwalMessage"]'
+      });
+      </text>
+    }
+  })();
+</script>
+}
